@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dotx Band Manager Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root { 
+            --bg: #f0f2f5; --card: #ffffff; --accent: #8b5cf6; 
+            --grad: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+            --text: #111827; --dim: #4b5563; --border: #d1d5db; 
+            --success: #10b981; --info: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
+        }
+        [data-theme="dark"] { 
+            --bg: #050810; --card: #111827; --text: #f9fafb; 
+            --dim: #9ca3af; --border: #1f2937; 
+        }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; transition: 0.3s; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        .container { padding: 12px; max-width: 100%; margin: auto; box-sizing: border-box; }
+        header { background: var(--grad); padding: 15px 0; text-align: center; border-radius: 0 0 20px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .nav { display: flex; background: var(--card); position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .nav-btn { flex: 1; padding: 12px 2px; border: none; background: none; color: var(--dim); font-weight: 600; cursor: pointer; font-size: 8.5px; text-transform: uppercase; }
+        .nav-btn.active { color: var(--accent); border-top: 3px solid var(--accent); }
+        .page { display: none; padding: 10px 0; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .glass-card { background: var(--card); border-radius: 15px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); }
+        input, select { width: 100%; padding: 12px; margin: 6px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;}
+        .btn-main { background: var(--grad); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 14px; }
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 85%; }
+        .toast { padding: 14px 20px; border-radius: 12px; color: white; font-weight: 600; margin-bottom: 10px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; border: 1px solid rgba(255,255,255,0.2); }
+        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 8000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card); border-radius: 25px; padding: 25px; border: 1px solid var(--border); width: 92%; max-width: 420px; position: relative; text-align: center; overflow-y: auto; max-height: 85vh; }
+        .close-x { position: absolute; right: 15px; top: 15px; font-size: 26px; color: var(--dim); cursor: pointer; line-height: 1; }
+        .pin-dots { display: flex; gap: 15px; margin: 20px auto; justify-content: center; }
+        .dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--accent); transition: 0.2s; }
+        .dot.active { background: var(--accent); transform: scale(1.2); }
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; max-width: 320px; margin: 0 auto; }
+        .num-btn { aspect-ratio: 1/1; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 30px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; user-select: none; }
+        .num-btn:active { background: var(--accent); color: white; transform: scale(0.85); box-shadow: 0 0 15px var(--accent); }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .stat-box { padding: 15px 10px; border-radius: 15px; text-align: center; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: 0.2s; }
+        .stat-box h2 { margin: 5px 0; font-size: 20px; color: var(--accent); }
+        .stat-box small { color: var(--dim); font-size: 11px; text-transform: uppercase; }
+        .stat-full { grid-column: span 2; background: var(--grad); color: white; border: none; }
+        .stat-full h2 { color: white; font-size: 28px; }
+        #logoPreview { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin: 0 auto 10px; display: none; }
+        .bk-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; text-align: left; }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <div id="toast-container"></div>
+
+    <div id="lockScreen">
+        <h2 style="margin:0 0 15px 0; color:var(--accent);">🔒 DOTX LOGIN</h2>
+        <div class="pin-dots" id="loginDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="numpad">
+            <div class="num-btn" onclick="pressNum('1')">1</div><div class="num-btn" onclick="pressNum('2')">2</div><div class="num-btn" onclick="pressNum('3')">3</div>
+            <div class="num-btn" onclick="pressNum('4')">4</div><div class="num-btn" onclick="pressNum('5')">5</div><div class="num-btn" onclick="pressNum('6')">6</div>
+            <div class="num-btn" onclick="pressNum('7')">7</div><div class="num-btn" onclick="pressNum('8')">8</div><div class="num-btn" onclick="pressNum('9')">9</div>
+            <div class="num-btn" style="border:none; color:var(--danger); font-size:12px" onclick="pressNum('C')">CLR</div><div class="num-btn" onclick="pressNum('0')">0</div><div class="num-btn" style="border:none; color:var(--dim); font-size:12px" onclick="pressNum('B')">DEL</div>
+        </div>
+    </div>
+
+    <div id="pinModal" class="modal">
+        <div class="modal-content">
+            <span class="close-x" onclick="closePinModal()">×</span>
+            <h3>Confirm PIN</h3>
+            <div class="pin-dots" id="actionDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+            <div class="numpad">
+                <div class="num-btn" onclick="pressActionNum('1')">1</div><div class="num-btn" onclick="pressActionNum('2')">2</div><div class="num-btn" onclick="pressActionNum('3')">3</div>
+                <div class="num-btn" onclick="pressActionNum('4')">4</div><div class="num-btn" onclick="pressActionNum('5')">5</div><div class="num-btn" onclick="pressActionNum('6')">6</div>
+                <div class="num-btn" onclick="pressActionNum('7')">7</div><div class="num-btn" onclick="pressActionNum('8')">8</div><div class="num-btn" onclick="pressActionNum('9')">9</div>
+                <div class="num-btn" style="visibility:hidden"></div><div class="num-btn" onclick="pressActionNum('0')">0</div><div class="num-btn" onclick="pressActionNum('B')">⌫</div>
+            </div>
+        </div>
+    </div>
+
+    <header><h3 style="margin:0; color:white;">Dotx Band Data Manager</h3></header>
+
+    <div class="nav">
+        <button class="nav-btn active" id="btn-dash" onclick="showPage('dash')">Dash</button>
+        <button class="nav-btn" id="btn-add" onclick="showPage('add')">Entry</button>
+        <button class="nav-btn" id="btn-history" onclick="showPage('history')">History</button>
+        <button class="nav-btn" id="btn-analysis" onclick="showPage('analysis')">Analysis</button>
+        <button class="nav-btn" id="btn-compare" onclick="showPage('compare')">Compare</button>
+        <button class="nav-btn" id="btn-tools" onclick="showPage('tools')">Tools</button>
+    </div>
+
+    <div class="container">
+        <div id="dash" class="page active">
+            <div class="glass-card">
+                <select id="dashMemSelect" onchange="updateDash()"></select>
+                <div class="stat-grid">
+                    <div class="stat-box stat-full" onclick="viewBreakdown('lifetime')">
+                        <small>Lifetime Earnings</small><h2 id="dashLifetimeAmt">₹0</h2><span id="dashLifetimeGigs">0 Shows</span>
+                    </div>
+                    <div class="stat-box" onclick="viewBreakdown('month')">
+                        <small>Current Month</small><h2 id="dashMonthAmt">₹0</h2><span id="dashMonthGigs">0 Gigs</span>
+                    </div>
+                    <div class="stat-box" onclick="viewBreakdown('year')">
+                        <small>Current Year</small><h2 id="dashYearAmt">₹0</h2><span id="dashYearGigs">0 Gigs</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-card">
+                <h4 style="margin:0 0 10px 0; color:var(--accent);">Income Growth (Current Year)</h4>
+                <div style="height:200px;"><canvas id="dashGrowthChart"></canvas></div>
+            </div>
+
+            <div class="glass-card">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                    <select id="dashStartMonth" onchange="updateDash()"></select><select id="dashStartYear" onchange="updateDash()"></select>
+                    <select id="dashEndMonth" onchange="updateDash()"></select><select id="dashEndYear" onchange="updateDash()"></select>
+                </div>
+                <div class="stat-box stat-full" style="margin-top:12px; background:var(--info);" onclick="viewBreakdown('custom')">
+                    <small>Selected Period Income</small><h2 id="dashCustomAmt">₹0</h2><span id="dashCustomGigs">0 Shows</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="add" class="page">
+            <div class="glass-card">
+                <h4 id="formTitle">Gig Entry</h4>
+                <input type="hidden" id="editId">
+                <input type="text" id="vName" placeholder="Venue Name">
+                <input list="orgDList" id="orgName" placeholder="Organizer Name">
+                <input type="date" id="gDate">
+                <input type="number" id="gDeal" placeholder="Total Deal ₹">
+                <div id="payoutArea"></div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--success); font-size:11px;">+ Band Pay</button>
+                    <button type="button" onclick="addRow()" class="btn-main" style="background:var(--info); font-size:11px;">+ Member</button>
+                </div>
+                <button class="btn-main" onclick="saveShow()">SAVE DATA</button>
+                <button class="btn-main" id="cancelBtn" style="display:none; background:var(--dim)" onclick="resetForm()">CANCEL</button>
+            </div>
+        </div>
+
+        <div id="history" class="page">
+            <div class="glass-card" style="padding: 10px; display: flex; gap: 5px;">
+                <select id="histMonth" onchange="renderHistory()"></select>
+                <select id="histYear" onchange="renderHistory()"></select>
+            </div>
+            <div id="hList"></div>
+        </div>
+
+        <div id="analysis" class="page">
+            <div class="glass-card">
+                <select id="analysisType" onchange="toggleAnalysisMode()"><option value="member">Member Performance</option><option value="organizer">Organizer Business</option></select>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;">
+                    <select id="anaStartMonth" onchange="triggerAnalysis()"></select><select id="anaStartYear" onchange="triggerAnalysis()"></select>
+                    <select id="anaEndMonth" onchange="triggerAnalysis()"></select><select id="anaEndYear" onchange="triggerAnalysis()"></select>
+                </div>
+                <div id="memberSection" style="margin-top:15px;">
+                    <select id="memSelect" onchange="runMemberAnalysis()"></select>
+                    <div id="memStats" style="display:none; margin-top:15px;">
+                        <div style="background:var(--grad); padding:15px; border-radius:15px; color:white; text-align:center;"><h2 id="totalSelectedVal">₹0</h2><span id="totalSelectedShow">0 Shows</span></div>
+                        <button class="btn-main" onclick="exportMemberPDF()">DOWNLOAD PDF REPORT</button>
+                        <div style="height:250px; margin-top:20px;"><canvas id="memChart"></canvas></div>
+                    </div>
+                </div>
+                <div id="orgSection" style="display:none; margin-top:15px;">
+                    <div style="background:var(--bg); border:1px solid var(--border); padding:15px; border-radius:15px; text-align:center;"><h2 id="orgPeriodTotal">₹0</h2><span id="orgPeriodGigs">0 Shows</span></div>
+                    <button class="btn-main" style="background:var(--success); margin-top:10px;" onclick="exportOrgFullPDF()">DOWNLOAD ORG SUMMARY</button>
+                    <div style="max-width:200px; margin:auto; margin-top:15px;"><canvas id="orgChart"></canvas></div>
+                    <div id="orgDetailsList" style="margin-top:15px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="compare" class="page">
+            <div class="glass-card">
+                <h4 style="margin:0 0 10px 0; color:var(--accent);">Period Comparison</h4>
+                <select id="compMemSelect" onchange="runComparison()"></select>
+                <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div>
+                        <small>Period 1</small>
+                        <select id="c1Type" onchange="toggleCompFilters(1)"><option value="month">Month</option><option value="year">Full Year</option></select>
+                        <select id="c1m" onchange="runComparison()"></select><select id="c1y" onchange="runComparison()"></select>
+                    </div>
+                    <div>
+                        <small>Period 2</small>
+                        <select id="c2Type" onchange="toggleCompFilters(2)"><option value="month">Month</option><option value="year">Full Year</option></select>
+                        <select id="c2m" onchange="runComparison()"></select><select id="c2y" onchange="runComparison()"></select>
+                    </div>
+                </div>
+                <button class="btn-main" style="background:var(--info); margin-top:15px;" onclick="exportComparePDF()">DOWNLOAD COMPARISON PDF</button>
+                <div id="compResult" style="margin-top:15px;"></div>
+            </div>
+        </div>
+
+        <div id="tools" class="page">
+            <div class="glass-card" style="text-align:center;"><img id="logoPreview" src=""><button class="btn-main" style="background:var(--info); font-size:12px;" onclick="document.getElementById('logoInput').click()">UPLOAD LOGO</button><input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="handleLogo(event)"></div>
+            <div class="glass-card"><h4>Directory Management</h4><div style="display:flex; gap:5px;"><input type="text" id="dirInput" placeholder="Name"><select id="dirType" style="width:100px;"><option value="m">Member</option><option value="o">Org</option></select><button class="btn-main" style="width:auto; padding:0 15px;" onclick="addDirectory()">ADD</button></div><div id="dirChips" class="chip-container" style="margin-top:10px;"></div></div>
+            <div class="glass-card"><h4>Security PIN</h4><input type="password" id="newPinInput" maxlength="4" placeholder="New PIN"><button class="btn-main" onclick="confirmPinChange()">CHANGE PIN</button></div>
+            <div class="glass-card">
+                <button class="btn-main" onclick="toggleTheme()">🌓 SWITCH THEME</button>
+                <button class="btn-main" style="background:var(--success); margin-top:10px;" onclick="secureAction('export')">💾 EXPORT BACKUP</button>
+                <button class="btn-main" style="background:var(--info);" onclick="secureAction('import')">📥 IMPORT BACKUP</button>
+                <button class="btn-main" style="background:var(--danger); margin-top:15px;" onclick="secureAction('reset')">⚠️ RESET DATA</button>
+                <input type="file" id="inFile" style="display:none;" onchange="handleImport(event)">
+            </div>
+        </div>
+    </div>
+
+    <datalist id="orgDList"></datalist><datalist id="memDList"></datalist>
+    <div id="detailModal" class="modal" onclick="closeDetailIfOutside(event)"><div class="modal-content" id="modalBody"></div></div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+
+        const { jsPDF } = window.jspdf;
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        let db = { shows: [], theme: 'light', logo: '', pin: '1234', dir: [] };
+        let inputPin = "", actionPin = "", currentAction = null, mChart = null, oChart = null, dashLineChart = null;
+
+        const dbRequest = indexedDB.open("DotxBandDB", 1);
+        dbRequest.onupgradeneeded = e => e.target.result.createObjectStore("settings");
+        dbRequest.onsuccess = e => {
+            const idb = e.target.result;
+            idb.transaction("settings", "readonly").objectStore("settings").get("data").onsuccess = ev => {
+                if(ev.target.result) db = ev.target.result;
+                initApp();
+            };
+        };
+        function saveDB() { dbRequest.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data"); refreshStaticData(); }
+
+        function initApp() { 
+            document.body.setAttribute('data-theme', db.theme); 
+            refreshStaticData(); setupDefaultDates();
+            document.getElementById('dashMemSelect').value = "Band Payment";
+            updateDash(); 
+        }
+
+        function formatD(dateStr) {
+            if(!dateStr) return "-";
+            const [y, m, d] = dateStr.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        function setupDefaultDates() {
+            const cy = new Date().getFullYear();
+            const cm = new Date().getMonth();
+            const mFilters = ['dashStartMonth','dashEndMonth','anaStartMonth','anaEndMonth','histMonth','c1m','c2m'];
+            const yFilters = ['dashStartYear','dashEndYear','anaStartYear','anaEndYear','histYear','c1y','c2y'];
+            mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
+            ['dashStartMonth', 'anaStartMonth'].forEach(id => document.getElementById(id).value = 8);
+            ['dashEndMonth', 'anaEndMonth'].forEach(id => document.getElementById(id).value = 7);
+            ['dashStartYear', 'anaStartYear', 'histYear', 'c2y'].forEach(id => document.getElementById(id).value = cy);
+            ['dashEndYear', 'anaEndYear'].forEach(id => document.getElementById(id).value = cy + 1);
+            document.getElementById('c2m').value = cm;
+            document.getElementById('c1m').value = cm;
+            document.getElementById('c1y').value = cy - 1;
+        }
+
+        function notify(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const t = document.createElement('div'); t.className = 'toast';
+            t.style.background = type === 'success' ? 'var(--success)' : type === 'danger' ? 'var(--danger)' : type === 'warning' ? 'var(--warning)' : 'var(--info)';
+            t.innerText = msg; container.appendChild(t); setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+        }
+
+        function pressNum(n) {
+            if(n === 'C') inputPin = ""; else if(n === 'B') inputPin = inputPin.slice(0, -1); else if(inputPin.length < 4) inputPin += n;
+            const d = document.getElementById('loginDots').children; for(let i=0; i<4; i++) d[i].className = i < inputPin.length ? 'dot active' : 'dot';
+            if(inputPin.length === 4) { if(inputPin === db.pin) { document.getElementById('lockScreen').style.display='none'; inputPin=""; } else { notify("Wrong PIN","danger"); inputPin=""; resetDots('loginDots'); } }
+        }
+        function pressActionNum(n) {
+            if(n === 'B') actionPin = actionPin.slice(0, -1); else if(actionPin.length < 4) actionPin += n;
+            const d = document.getElementById('actionDots').children; for(let i=0; i<4; i++) d[i].className = i < actionPin.length ? 'dot active' : 'dot';
+            if(actionPin.length === 4) { if(actionPin === db.pin) { const act = currentAction; closePinModal(); setTimeout(() => { if(act==='export') runExport(); if(act==='import') document.getElementById('inFile').click(); if(act==='reset') runReset(); }, 100); } else { notify("Wrong PIN","danger"); actionPin=""; resetDots('actionDots'); } }
+        }
+        function resetDots(id) { const d = document.getElementById(id).children; for(let i=0; i<4; i++) d[i].className = 'dot'; }
+        function secureAction(a) { currentAction = a; actionPin = ""; resetDots('actionDots'); document.getElementById('pinModal').style.display = 'flex'; }
+        function closePinModal() { document.getElementById('pinModal').style.display = 'none'; }
+        function confirmPinChange() { const np = document.getElementById('newPinInput').value; if(np.length===4){ db.pin=np; saveDB(); notify("PIN Updated","success"); document.getElementById('newPinInput').value=""; } else notify("Enter 4 digits","warning"); }
+
+        function saveAsPDF(doc, filename) {
+            const blob = doc.output('blob'); const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 200);
+        }
+
+        function exportReport(title, entity, data, sl, el) {
+            const doc = new jsPDF(); 
+            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
+            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text(title + " Report", 35, 18);
+            const total = data.reduce((a,b)=>a+b.amt, 0);
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`Name: ${entity}`, 14, 30);
+            doc.text(`Period: ${sl} to ${el}`, 14, 35);
+            doc.text(`Total Shows: ${data.length} | Total Earnings: INR ${total.toLocaleString()}`, 14, 40);
+            doc.autoTable({ 
+                head: [['Date', 'Venue', 'Organizer', 'Amount ₹', 'Note']], 
+                body: data.map(i => [formatD(i.date), i.venue, i.org, i.amt.toLocaleString(), i.note || '-']), 
+                startY: 48 
+            });
+            addFooter(doc); saveAsPDF(doc, `${entity}_Report.pdf`);
+        }
+
+        function exportOrgFullPDF() {
+            const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
+            const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
+            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+            const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
+            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Organizer Summary Report", 35, 18);
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
+            const orgMap = {}; let tI = 0, tS = 0, tB = 0;
+            db.shows.forEach(x => { const d = new Date(x.date); if(d >= start && d <= end) {
+                if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
+                let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
+                orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
+                tI += x.deal; tS++; tB += bp;
+            }});
+            const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
+            doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Total Deal']], body: rows, startY: 38 });
+            doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Deal: INR ${tI.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
+            addFooter(doc); saveAsPDF(doc, `Org_Summary.pdf`);
+        }
+
+        function exportGigPDF(id) { 
+            const s=db.shows.find(x=>x.id===id); const doc=new jsPDF(); 
+            if(db.logo) try{doc.addImage(db.logo,'PNG',14,10,15,15);}catch(e){} 
+            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Gig Breakdown Report", 35, 18); 
+            doc.setFontSize(11); doc.setTextColor(0);
+            doc.text(`Date: ${formatD(s.date)}`, 14, 32);
+            doc.text(`Spot / Venue: ${s.venue}`, 14, 39);
+            doc.text(`Organizer: ${s.org}`, 14, 46);
+            doc.text(`Total Deal: INR ${s.deal.toLocaleString()}`, 14, 53);
+            doc.autoTable({
+                head:[['Name','Amt','Mode','Note']], 
+                body:s.payouts.map(p=>[p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
+                startY:60
+            }); 
+            addFooter(doc); saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
+        }
+
+        async function exportComparePDF() {
+            const mem = document.getElementById('compMemSelect').value;
+            const res1 = calculatePeriodData(1, mem);
+            const res2 = calculatePeriodData(2, mem);
+            const doc = new jsPDF();
+            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
+            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Advanced Comparison Report", 35, 18);
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`Entity: ${mem}`, 14, 30);
+            doc.text(`P1: ${res1.label} | P2: ${res2.label}`, 14, 35);
+            doc.autoTable({ head: [['Metric', res1.label, res2.label, 'Diff']], body: [['Income', res1.amt.toLocaleString(), res2.amt.toLocaleString(), (res2.amt-res1.amt).toLocaleString()], ['Shows', res1.gigs, res2.gigs, res2.gigs-res1.gigs]], startY: 42 });
+            const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
+            const orgRows = allOrgs.map(n => [n, res1.orgs[n]?.gigs || 0, `INR ${res1.orgs[n]?.earnings.toLocaleString() || 0}`, res2.orgs[n]?.gigs || 0, `INR ${res2.orgs[n]?.earnings.toLocaleString() || 0}`]);
+            doc.text("Organizer Comparison Breakdown", 14, doc.lastAutoTable.finalY + 15);
+            doc.autoTable({ head: [['Organizer', 'P1 Gigs', 'P1 Total', 'P2 Gigs', 'P2 Total']], body: orgRows, startY: doc.lastAutoTable.finalY + 20 });
+            addFooter(doc); saveAsPDF(doc, `Comparison_${mem}.pdf`);
+        }
+
+        function toggleCompFilters(id) { document.getElementById(`c${id}m`).style.display = document.getElementById(`c${id}Type`).value === 'year' ? 'none' : 'inline-block'; runComparison(); }
+        function calculatePeriodData(id, mem) {
+            const type = document.getElementById(`c${id}Type`).value; const m = parseInt(document.getElementById(`c${id}m`).value); const y = parseInt(document.getElementById(`c${id}y`).value);
+            let amt = 0, gigs = 0, orgs = {};
+            db.shows.forEach(s => { const d = new Date(s.date); const match = type === 'year' ? (d.getFullYear() === y) : (d.getFullYear() === y && d.getMonth() === m);
+                if(match) { const p = s.payouts.find(px => px.name === mem); if(p) { amt += p.amt; gigs++; if(!orgs[s.org]) orgs[s.org] = { gigs: 0, earnings: 0 }; orgs[s.org].gigs++; orgs[s.org].earnings += s.deal; } }
+            });
+            return { amt, gigs, orgs, label: type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}` };
+        }
+        function runComparison() {
+            const mem = document.getElementById('compMemSelect').value; const res1 = calculatePeriodData(1, mem); const res2 = calculatePeriodData(2, mem);
+            const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
+            let orgHtml = allOrgs.map(name => { const o1 = res1.orgs[name] || { gigs: 0, earnings: 0 }; const o2 = res2.orgs[name] || { gigs: 0, earnings: 0 };
+                return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%">${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%"><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
+            }).join('');
+            document.getElementById('compResult').innerHTML = `<div class="comp-grid"><div class="comp-card"><small>${res1.label}</small><h3>₹${res1.amt.toLocaleString()}</h3><p>${res1.gigs} Gigs</p></div><div class="comp-card"><small>${res2.label}</small><h3>₹${res2.amt.toLocaleString()}</h3><p>${res2.gigs} Gigs</p></div></div><div class="glass-card" style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>${orgHtml || '<p>No data</p>'}</div>`;
+        }
+
+        function updateDash() {
+            const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
+            const now = new Date(); let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
+            const start = new Date(document.getElementById('dashStartYear').value, document.getElementById('dashStartMonth').value, 1);
+            const end = new Date(document.getElementById('dashEndYear').value, document.getElementById('dashEndMonth').value, 31);
+            let monthlyGrowth = new Array(12).fill(0);
+            db.shows.forEach(s => { 
+                const sd = new Date(s.date); 
+                s.payouts.forEach(p => { 
+                    if(p.name === mem) { 
+                        lAmt += p.amt; lG++; 
+                        if(sd.getMonth()===now.getMonth()&&sd.getFullYear()===now.getFullYear()){mAmt+=p.amt; mG++;} 
+                        if(sd.getFullYear()===now.getFullYear()){
+                            yAmt+=p.amt; yG++;
+                            monthlyGrowth[sd.getMonth()] += p.amt;
+                        } 
+                        if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
+                    }
+                });
+            });
+            document.getElementById('dashLifetimeAmt').innerText=`₹${lAmt.toLocaleString()}`; document.getElementById('dashLifetimeGigs').innerText=`${lG} Shows`;
+            document.getElementById('dashMonthAmt').innerText=`₹${mAmt.toLocaleString()}`; document.getElementById('dashMonthGigs').innerText=`${mG} Gigs`;
+            document.getElementById('dashYearAmt').innerText=`₹${yAmt.toLocaleString()}`; document.getElementById('dashYearGigs').innerText=`${yG} Gigs`;
+            document.getElementById('dashCustomAmt').innerText=`₹${cAmt.toLocaleString()}`; document.getElementById('dashCustomGigs').innerText=`${cG} Shows`;
+            renderDashGrowthChart(monthlyGrowth);
+        }
+
+        function renderDashGrowthChart(data) {
+            if(dashLineChart) dashLineChart.destroy();
+            const ctx = document.getElementById('dashGrowthChart').getContext('2d');
+            dashLineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months.map(m => m.substring(0,3)),
+                    datasets: [{
+                        label: 'Income',
+                        data: data,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139,92,246,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function refreshStaticData() {
+            const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; const os = db.dir.filter(d=>d.type==='o').map(d=>d.name).sort();
+            const dashMem = document.getElementById('dashMemSelect').value; const compMem = document.getElementById('compMemSelect').value;
+            document.getElementById('dashMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+            document.getElementById('dashMemSelect').value = dashMem || "Band Payment";
+            document.getElementById('compMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+            document.getElementById('compMemSelect').value = compMem || "Band Payment";
+            document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
+            document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
+            if(db.logo) { const lp = document.getElementById('logoPreview'); lp.src = db.logo; lp.style.display = 'block'; }
+        }
+
+        function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
+        function populateFilters(m, y, a=true) { document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); const yrs=[2023,2024,2025,2026,2027]; document.getElementById(y).innerHTML = yrs.map(v=>`<option value="${v}">${v}</option>`).join(''); }
+        function addDirectory() { const v=document.getElementById('dirInput').value, t=document.getElementById('dirType').value; if(v){ db.dir.push({name:v, type:t}); saveDB(); document.getElementById('dirInput').value=""; } }
+        function delDir(i) { db.dir.splice(i,1); saveDB(); }
+
+        function addRow(p='') { 
+            const d=document.createElement('div'); 
+            d.className='payout-row'; 
+            d.style.marginBottom = "10px";
+            d.innerHTML=`
+                <input class="pn" list="memDList" placeholder="Name" value="${p}">
+                <div style="display:flex; gap:5px;">
+                    <input type="number" class="pa" placeholder="₹">
+                    <select class="pm">
+                        <option value="Cash">Cash</option>
+                        <option value="Online">Online</option>
+                    </select>
+                </div>
+                <input type="text" class="pnote" placeholder="Payment Note/Txn ID" style="margin-top:5px;">
+                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; float:right;">×</button>
+                <div style="clear:both"></div>
+            `; 
+            document.getElementById('payoutArea').appendChild(d); 
+        }
+
+        function saveShow() { 
+            const v=document.getElementById('vName').value; 
+            if(!v) return notify("Venue required","danger"); 
+            const pA=[]; 
+            document.querySelectorAll('.payout-row').forEach(r=>{
+                const n=r.querySelector('.pn').value; 
+                if(n) pA.push({
+                    name:n, 
+                    amt:parseFloat(r.querySelector('.pa').value||0), 
+                    mode:r.querySelector('.pm').value, 
+                    note:r.querySelector('.pnote').value||''
+                });
+            }); 
+            const id=document.getElementById('editId').value; 
+            const g={id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), payouts: pA}; 
+            if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
+            saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
+        }
+
+        function renderHistory() { const fM = document.getElementById('histMonth').value, fY = document.getElementById('histYear').value; const list = db.shows.filter(s => { const d = new Date(s.date); return d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM); }).sort((a,b)=>new Date(b.date)-new Date(a.date)); document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br>₹${s.deal}</div>`).join('') || '<p style="text-align:center">No Data</p>'; }
+        
+        function viewGigDetails(id) { 
+            const s=db.shows.find(x=>x.id===id); 
+            document.getElementById('modalBody').innerHTML = `
+                <span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span>
+                <h3>${s.venue}</h3>
+                <p style="font-size:13px">${formatD(s.date)}</p>
+                <div style="border-top:1px solid var(--border); margin-top:10px">
+                    ${s.payouts.map(p=>`
+                        <div style="border-bottom:1px solid var(--border); padding:8px 0; text-align:left;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>${p.name} (${p.mode})</span>
+                                <strong>₹${p.amt}</strong>
+                            </div>
+                            ${p.note ? `<small style="color:var(--dim)">Note: ${p.note}</small>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="btn-main" onclick="exportGigPDF(${id})">PDF</button>
+                    <button class="btn-main" style="background:var(--info)" onclick="editGig(${id})">EDIT</button>
+                </div>`; 
+            document.getElementById('detailModal').style.display='flex'; 
+        }
+
+        function exportMemberPDF() {
+            const name = document.getElementById('memSelect').value; if(!name) return;
+            const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
+            const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
+            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+            const data = []; db.shows.forEach(s => { 
+                const d = new Date(s.date);
+                if(d >= start && d <= end){ 
+                    s.payouts.forEach(p=>{if(p.name===name) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); 
+                }
+            });
+            exportReport("Performance", name, data, `${months[sm]} ${sy}`, `${months[em]} ${ey}`);
+        }
+        function viewBreakdown(type) {
+            const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
+            const now = new Date(); let start, end, title, sl, el;
+            if(type==='lifetime'){ start=new Date(2000,0,1); end=new Date(2100,0,1); title="Lifetime"; sl="Start"; el="Current"; }
+            else if(type==='month'){ start=new Date(now.getFullYear(),now.getMonth(),1); end=new Date(now.getFullYear(),now.getMonth(),31); title="Monthly"; sl=months[now.getMonth()]+" "+now.getFullYear(); el=sl; }
+            else if(type==='year'){ start=new Date(now.getFullYear(),0,1); end=new Date(now.getFullYear(),11,31); title="Yearly"; sl="Jan "+now.getFullYear(); el="Dec "+now.getFullYear(); }
+            else { 
+                const sm = parseInt(document.getElementById('dashStartMonth').value); const sy = parseInt(document.getElementById('dashStartYear').value);
+                const em = parseInt(document.getElementById('dashEndMonth').value); const ey = parseInt(document.getElementById('dashEndYear').value);
+                start = new Date(sy, sm, 1); end = new Date(ey, em, 31); title="Custom Period"; sl = `${months[sm]} ${sy}`; el = `${months[em]} ${ey}`;
+            }
+            const data = []; db.shows.forEach(s => { if(new Date(s.date)>=start && new Date(s.date)<=end){ s.payouts.forEach(p=>{if(p.name===mem) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
+            renderBreakdownModal(title, mem, data, sl, el);
+        }
+        function renderBreakdownModal(title, entity, data, sl, el) {
+            let html = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3>${title}</h3><p>${entity}</p><div style="margin-top:15px; border-top:1px solid var(--border)">`;
+            let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; html += `<div class="bk-row"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; });
+            html += `<div style="display:flex; justify-content:space-between; padding:15px 0; color:var(--accent);"><strong>TOTAL</strong><strong>₹${t.toLocaleString()}</strong></div></div><button class="btn-main" id="dlBreakdownPdf">DOWNLOAD PDF</button>`;
+            document.getElementById('modalBody').innerHTML = html; document.getElementById('detailModal').style.display = 'flex';
+            document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el);
+        }
+        function toggleAnalysisMode() { const m = document.getElementById('analysisType').value; document.getElementById('memberSection').style.display=m==='member'?'block':'none'; document.getElementById('orgSection').style.display=m==='organizer'?'block':'none'; if(m==='member'){ const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; document.getElementById('memSelect').innerHTML = '<option value="">Select Member</option>' + ms.map(n => `<option value="${n}">${n}</option>`).join(''); } triggerAnalysis(); }
+        function triggerAnalysis() { const mode = document.getElementById('analysisType').value; if(mode === 'member') runMemberAnalysis(); else runOrgAnalysis(); }
+        function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=s && d<=e){ x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}});}}); document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6' }]} }); }
+        function runOrgAnalysis() {
+            const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value;
+            const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value;
+            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+            const om={}; let tr=0, tg=0;
+            db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=start && d <= end){ 
+                if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; 
+                let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0;
+                let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || '';
+                om[x.org].r+=x.deal; om[x.org].c++; 
+                om[x.org].list.push({date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn});
+                tr+=x.deal; tg++; 
+            }});
+            document.getElementById('orgSection').style.display='block'; document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`;
+            if(oChart) oChart.destroy();
+            oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: Object.keys(om), datasets: [{ data: Object.values(om).map(v=>v.r), backgroundColor: ['#8b5cf6','#10b981','#f59e0b','#3b82f6','#f43f5e'] }]}, options: { onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = oChart.data.labels[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } }, plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } } } });
+            document.getElementById('orgDetailsList').innerHTML = Object.keys(om).sort((a,b)=>om[b].r-om[a].r).map(l => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`}).join('');
+        }
+        function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
+        function editGig(id) { 
+            const s=db.shows.find(x=>x.id==id); 
+            document.getElementById('detailModal').style.display='none'; 
+            document.getElementById('editId').value=s.id; 
+            document.getElementById('vName').value=s.venue; 
+            document.getElementById('orgName').value=s.org; 
+            document.getElementById('gDate').value=s.date; 
+            document.getElementById('gDeal').value=s.deal; 
+            document.getElementById('payoutArea').innerHTML=''; 
+            s.payouts.forEach(p=>{
+                addRow(p.name); 
+                const r=document.querySelector('#payoutArea .payout-row:last-child'); 
+                r.querySelector('.pa').value=p.amt; 
+                r.querySelector('.pm').value=p.mode; 
+                r.querySelector('.pnote').value=p.note || '';
+            }); 
+            document.getElementById('formTitle').innerText="Edit Gig"; 
+            document.getElementById('cancelBtn').style.display='block'; 
+            showPage('add'); 
+        }
+        async function runExport() { const ds=JSON.stringify(db, null, 2); if(window.showSaveFilePicker){ try{const h=await window.showSaveFilePicker({suggestedName:`Band_Backup.json`, types:[{description:'JSON', accept:{'application/json':['.json']}}]}); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success");}catch(e){}} else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=`Dotx_Backup.json`; a.click(); } }
+        function handleImport(e) { const r = new FileReader(); r.onload = (x) => { try { db = JSON.parse(x.target.result); saveDB(); notify("Sync Success", "success"); setTimeout(() => location.reload(), 1000); } catch(err) { notify("Error", "danger"); } }; r.readAsText(e.target.files[0]); }
+        function runReset() { if(confirm("Erase all data?")){ indexedDB.deleteDatabase("DotxBandDB"); notify("Wiped", "danger"); setTimeout(()=>location.reload(), 1000); } }
+        function handleLogo(e) { const r = new FileReader(); r.onload = (ev) => { db.logo = ev.target.result; saveDB(); notify("Logo Saved", "success"); }; r.readAsDataURL(e.target.files[0]); }
+        function toggleTheme() { db.theme = db.theme === 'dark' ? 'light' : 'dark'; document.body.setAttribute('data-theme', db.theme); saveDB(); notify("Theme Updated"); }
+        function closeDetailIfOutside(e) { if(e.target.id === 'detailModal') e.target.style.display = 'none'; }
+        function addFooter(doc) { const pc = doc.internal.getNumberOfPages(); doc.setFontSize(8); doc.setTextColor(150); for(let i=1; i<=pc; i++) { doc.setPage(i); doc.text("Generated by Dotx Band Data Manager", 105, 285, {align: 'center'}); } }
+    </script>
+</body>
+</html>
