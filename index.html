@@ -341,20 +341,39 @@
         }
 
         function exportGigPDF(id) { 
-            const s=db.shows.find(x=>x.id===id); const doc=new jsPDF(); 
-            if(db.logo) try{doc.addImage(db.logo,'PNG',14,10,15,15);}catch(e){} 
+            const s = db.shows.find(x => x.id === id); 
+            const doc = new jsPDF(); 
+            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){} 
+            
             doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Gig Breakdown Report", 35, 18); 
             doc.setFontSize(11); doc.setTextColor(0);
             doc.text(`Date: ${formatD(s.date)}`, 14, 32);
             doc.text(`Spot / Venue: ${s.venue}`, 14, 39);
             doc.text(`Organizer: ${s.org}`, 14, 46);
             doc.text(`Total Deal: INR ${s.deal.toLocaleString()}`, 14, 53);
+            
+            // Separate Band Payment for top display
+            const bandPayObj = s.payouts.find(p => p.name === "Band Payment");
+            const bandPayAmt = bandPayObj ? bandPayObj.amt : 0;
+            const bandPayNote = bandPayObj && bandPayObj.note ? bandPayObj.note : '-';
+            
+            doc.setFontSize(11); doc.setTextColor(16, 185, 129); // Success Green
+            doc.text(`Band Payment: INR ${bandPayAmt.toLocaleString()}`, 14, 62);
+            doc.setFontSize(9); doc.setTextColor(100);
+            doc.text(`BP Note: ${bandPayNote}`, 14, 67);
+
+            // Filter out Band Payment for the members table
+            const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
+
             doc.autoTable({
-                head:[['Name','Amt','Mode','Note']], 
-                body:s.payouts.map(p=>[p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
-                startY:60
+                head: [['Name', 'Amount', 'Mode', 'Note']], 
+                body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
+                startY: 75,
+                headStyles: { fillStyle: 'f' }
             }); 
-            addFooter(doc); saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
+            
+            addFooter(doc); 
+            saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
         }
 
         async function exportComparePDF() {
