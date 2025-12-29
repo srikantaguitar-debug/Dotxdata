@@ -36,7 +36,8 @@
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .glass-card { background: var(--card); border-radius: 15px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); }
-        input, select { width: 100%; padding: 12px; margin: 6px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;}
+        input, select, textarea { width: 100%; padding: 12px; margin: 6px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;}
+        textarea { resize: vertical; height: 80px; font-family: inherit; }
         .btn-main { background: var(--grad); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 14px; }
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 85%; }
         .toast { padding: 14px 20px; border-radius: 12px; color: white; font-weight: 600; margin-bottom: 10px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; border: 1px solid rgba(255,255,255,0.2); }
@@ -47,9 +48,11 @@
         .pin-dots { display: flex; gap: 15px; margin: 20px auto; justify-content: center; }
         .dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--accent); transition: 0.2s; }
         .dot.active { background: var(--accent); transform: scale(1.2); }
-        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; max-width: 320px; margin: 0 auto; }
-        .num-btn { aspect-ratio: 1/1; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 30px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; user-select: none; }
-        .num-btn:active { background: var(--accent); color: white; transform: scale(0.85); box-shadow: 0 0 15px var(--accent); }
+        
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 360px; margin: 0 auto; }
+        .num-btn { width: 75px; height: 75px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 32px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; user-select: none; margin: auto; }
+        .num-btn:active { background: var(--accent); color: white; transform: scale(0.90); box-shadow: 0 0 15px var(--accent); }
+        
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .stat-box { padding: 15px 10px; border-radius: 15px; text-align: center; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: 0.2s; }
         .stat-box h2 { margin: 5px 0; font-size: 20px; color: var(--accent); }
@@ -58,6 +61,19 @@
         .stat-full h2 { color: white; font-size: 28px; }
         #logoPreview { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin: 0 auto 10px; display: none; }
         .bk-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; text-align: left; }
+
+        .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .comp-card { background: var(--grad); color: white; padding: 15px; border-radius: 15px; text-align: center; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .comp-card:active { transform: scale(0.98); opacity: 0.9; }
+        .comp-card h3 { margin: 5px 0; font-size: 22px; color: white; }
+        .comp-card p { margin: 0; font-size: 12px; opacity: 0.9; }
+        .comp-card small { font-size: 11px; text-transform: uppercase; opacity: 0.8; }
+        .clickable-cell { cursor: pointer; text-decoration: underline; text-decoration-color: var(--dim); text-underline-offset: 3px; }
+        
+        /* FIXED CSS FOR REMINDER */
+        .reminder-box { background: var(--warning); color: #fff; padding: 15px; border-radius: 15px; margin-bottom: 12px; display: block; animation: pulse 2s infinite; text-align: center; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); font-weight: 600; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
     </style>
 </head>
 <body onload="initApp()">
@@ -65,13 +81,13 @@
     <div id="toast-container"></div>
 
     <div id="lockScreen">
-        <h2 style="margin:0 0 15px 0; color:var(--accent);">🔒 DOTX LOGIN</h2>
+        <h2 style="margin:0 0 25px 0; color:var(--accent); font-size: 28px;">🔒 DOTX LOGIN</h2>
         <div class="pin-dots" id="loginDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         <div class="numpad">
             <div class="num-btn" onclick="pressNum('1')">1</div><div class="num-btn" onclick="pressNum('2')">2</div><div class="num-btn" onclick="pressNum('3')">3</div>
             <div class="num-btn" onclick="pressNum('4')">4</div><div class="num-btn" onclick="pressNum('5')">5</div><div class="num-btn" onclick="pressNum('6')">6</div>
             <div class="num-btn" onclick="pressNum('7')">7</div><div class="num-btn" onclick="pressNum('8')">8</div><div class="num-btn" onclick="pressNum('9')">9</div>
-            <div class="num-btn" style="border:none; color:var(--danger); font-size:12px" onclick="pressNum('C')">CLR</div><div class="num-btn" onclick="pressNum('0')">0</div><div class="num-btn" style="border:none; color:var(--dim); font-size:12px" onclick="pressNum('B')">DEL</div>
+            <div class="num-btn" style="border:none; color:var(--danger); font-size:16px" onclick="pressNum('C')">CLR</div><div class="num-btn" onclick="pressNum('0')">0</div><div class="num-btn" style="border:none; color:var(--dim); font-size:16px" onclick="pressNum('B')">DEL</div>
         </div>
     </div>
 
@@ -80,7 +96,7 @@
             <span class="close-x" onclick="closePinModal()">×</span>
             <h3>Confirm PIN</h3>
             <div class="pin-dots" id="actionDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-            <div class="numpad">
+            <div class="numpad" style="gap:15px">
                 <div class="num-btn" onclick="pressActionNum('1')">1</div><div class="num-btn" onclick="pressActionNum('2')">2</div><div class="num-btn" onclick="pressActionNum('3')">3</div>
                 <div class="num-btn" onclick="pressActionNum('4')">4</div><div class="num-btn" onclick="pressActionNum('5')">5</div><div class="num-btn" onclick="pressActionNum('6')">6</div>
                 <div class="num-btn" onclick="pressActionNum('7')">7</div><div class="num-btn" onclick="pressActionNum('8')">8</div><div class="num-btn" onclick="pressActionNum('9')">9</div>
@@ -102,6 +118,7 @@
 
     <div class="container">
         <div id="dash" class="page active">
+            <div id="reminderArea"></div>
             <div class="glass-card">
                 <select id="dashMemSelect" onchange="updateDash()"></select>
                 <div class="stat-grid">
@@ -118,8 +135,13 @@
             </div>
             
             <div class="glass-card">
-                <h4 style="margin:0 0 10px 0; color:var(--accent);">Income Growth (Current Year)</h4>
-                <div style="height:200px;"><canvas id="dashGrowthChart"></canvas></div>
+                <h4 style="margin:0 0 10px 0; color:var(--accent);">Income Comparison</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-bottom:10px;">
+                    <select id="growthY1" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
+                    <select id="growthY2" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
+                    <select id="growthY3" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
+                </div>
+                <div style="height:220px;"><canvas id="dashGrowthChart"></canvas></div>
             </div>
 
             <div class="glass-card">
@@ -141,6 +163,7 @@
                 <input list="orgDList" id="orgName" placeholder="Organizer Name">
                 <input type="date" id="gDate">
                 <input type="number" id="gDeal" placeholder="Total Deal ₹">
+                <textarea id="gNote" placeholder="General Gig Note (e.g. Sound check time, Advance info...)"></textarea>
                 <div id="payoutArea"></div>
                 <div style="display:flex; gap:10px;">
                     <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--success); font-size:11px;">+ Band Pay</button>
@@ -234,6 +257,7 @@
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         let db = { shows: [], theme: 'light', logo: '', pin: '1234', dir: [] };
         let inputPin = "", actionPin = "", currentAction = null, mChart = null, oChart = null, dashLineChart = null;
+        let compData = {}; 
 
         const dbRequest = indexedDB.open("DotxBandDB", 1);
         dbRequest.onupgradeneeded = e => e.target.result.createObjectStore("settings");
@@ -265,6 +289,10 @@
             const mFilters = ['dashStartMonth','dashEndMonth','anaStartMonth','anaEndMonth','histMonth','c1m','c2m'];
             const yFilters = ['dashStartYear','dashEndYear','anaStartYear','anaEndYear','histYear','c1y','c2y'];
             mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
+            
+            // Setup special chart year selectors
+            populateChartYearSelectors(cy);
+
             ['dashStartMonth', 'anaStartMonth'].forEach(id => document.getElementById(id).value = 8);
             ['dashEndMonth', 'anaEndMonth'].forEach(id => document.getElementById(id).value = 7);
             ['dashStartYear', 'anaStartYear', 'histYear', 'c2y'].forEach(id => document.getElementById(id).value = cy);
@@ -272,6 +300,21 @@
             document.getElementById('c2m').value = cm;
             document.getElementById('c1m').value = cm;
             document.getElementById('c1y').value = cy - 1;
+        }
+
+        function populateChartYearSelectors(cy) {
+            const opts = [];
+            for(let i = cy; i >= 2020; i--) opts.push(`<option value="${i}">${i}</option>`);
+            const optsWithNone = ['<option value="none">None</option>', ...opts];
+            
+            document.getElementById('growthY1').innerHTML = opts.join('');
+            document.getElementById('growthY2').innerHTML = optsWithNone.join('');
+            document.getElementById('growthY3').innerHTML = optsWithNone.join('');
+            
+            // Set defaults
+            document.getElementById('growthY1').value = cy;
+            document.getElementById('growthY2').value = "none";
+            document.getElementById('growthY3').value = "none";
         }
 
         function notify(msg, type = 'info') {
@@ -329,12 +372,20 @@
             doc.setFontSize(10); doc.setTextColor(0);
             doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
             const orgMap = {}; let tI = 0, tS = 0, tB = 0;
-            db.shows.forEach(x => { const d = new Date(x.date); if(d >= start && d <= end) {
-                if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
-                let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
-                orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
-                tI += x.deal; tS++; tB += bp;
-            }});
+            
+            // Only past gigs
+            const d = new Date();
+            const todayStr = new Date().toLocaleDateString('en-CA');
+
+            db.shows.forEach(x => { 
+                const d = new Date(x.date); 
+                if(d >= start && d <= end && x.date < todayStr) {
+                    if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
+                    let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
+                    orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
+                    tI += x.deal; tS++; tB += bp;
+                }
+            });
             const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
             doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Total Deal']], body: rows, startY: 38 });
             doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Deal: INR ${tI.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
@@ -362,6 +413,10 @@
             doc.text(`Band Payment: INR ${bandPayAmt.toLocaleString()}`, 14, 62);
             doc.setFontSize(9); doc.setTextColor(100);
             doc.text(`BP Note: ${bandPayNote}`, 14, 67);
+            
+            if(s.note) {
+                doc.text(`Main Note: ${s.note}`, 14, 72);
+            }
 
             // Filter out Band Payment for the members table
             const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
@@ -369,7 +424,7 @@
             doc.autoTable({
                 head: [['Name', 'Amount', 'Mode', 'Note']], 
                 body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
-                startY: 75,
+                startY: 80,
                 headStyles: { fillStyle: 'f' }
             }); 
             
@@ -396,72 +451,232 @@
         }
 
         function toggleCompFilters(id) { document.getElementById(`c${id}m`).style.display = document.getElementById(`c${id}Type`).value === 'year' ? 'none' : 'inline-block'; runComparison(); }
+        
         function calculatePeriodData(id, mem) {
             const type = document.getElementById(`c${id}Type`).value; const m = parseInt(document.getElementById(`c${id}m`).value); const y = parseInt(document.getElementById(`c${id}y`).value);
-            let amt = 0, gigs = 0, orgs = {};
-            db.shows.forEach(s => { const d = new Date(s.date); const match = type === 'year' ? (d.getFullYear() === y) : (d.getFullYear() === y && d.getMonth() === m);
-                if(match) { const p = s.payouts.find(px => px.name === mem); if(p) { amt += p.amt; gigs++; if(!orgs[s.org]) orgs[s.org] = { gigs: 0, earnings: 0 }; orgs[s.org].gigs++; orgs[s.org].earnings += s.deal; } }
+            let amt = 0, gigs = 0, orgs = {}, list = [];
+            
+            // LOCAL TIME FIX FOR "PAST" CHECK
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            
+            const sLbl = type === 'year' ? `Jan ${y}` : `${months[m]} ${y}`;
+            const eLbl = type === 'year' ? `Dec ${y}` : `${months[m]} ${y}`;
+            const label = type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}`;
+
+            db.shows.forEach(s => { 
+                // FILTER: Only count passed dates (NOT TODAY)
+                if(s.date >= todayStr) return;
+
+                const sd = new Date(s.date);
+                const match = type === 'year' ? (sd.getFullYear() === y) : (sd.getFullYear() === y && sd.getMonth() === m);
+                if(match) { const p = s.payouts.find(px => px.name === mem); 
+                    if(p) { 
+                        amt += p.amt; 
+                        gigs++; 
+                        if(!orgs[s.org]) orgs[s.org] = { gigs: 0, earnings: 0, list: [] }; 
+                        orgs[s.org].gigs++; 
+                        orgs[s.org].earnings += p.amt; 
+                        const gigInfo = {id: s.id, date: s.date, venue: s.venue, org: s.org, amt: p.amt, note: p.note};
+                        orgs[s.org].list.push(gigInfo);
+                        list.push(gigInfo);
+                    } 
+                }
             });
-            return { amt, gigs, orgs, label: type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}` };
+            return { amt, gigs, orgs, label, list, sLbl, eLbl };
         }
+
         function runComparison() {
-            const mem = document.getElementById('compMemSelect').value; const res1 = calculatePeriodData(1, mem); const res2 = calculatePeriodData(2, mem);
+            const mem = document.getElementById('compMemSelect').value; 
+            const res1 = calculatePeriodData(1, mem); 
+            const res2 = calculatePeriodData(2, mem);
+            compData = { p1: res1, p2: res2, mem: mem };
+
             const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
-            let orgHtml = allOrgs.map(name => { const o1 = res1.orgs[name] || { gigs: 0, earnings: 0 }; const o2 = res2.orgs[name] || { gigs: 0, earnings: 0 };
-                return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%">${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%"><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
+            
+            let t1G = 0, t1E = 0, t2G = 0, t2E = 0;
+
+            let orgHtml = allOrgs.map(name => { 
+                const o1 = res1.orgs[name] || { gigs: 0, earnings: 0, list: [] }; 
+                const o2 = res2.orgs[name] || { gigs: 0, earnings: 0, list: [] };
+                t1G += o1.gigs; t1E += o1.earnings;
+                t2G += o2.gigs; t2E += o2.earnings;
+
+                const c1 = o1.list.length ? `onclick="openOrgDetail('p1', '${name}')" class="clickable-cell"` : '';
+                const c2 = o2.list.length ? `onclick="openOrgDetail('p2', '${name}')" class="clickable-cell"` : '';
+
+                return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%" ${c1}>${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%" ${c2}><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
             }).join('');
-            document.getElementById('compResult').innerHTML = `<div class="comp-grid"><div class="comp-card"><small>${res1.label}</small><h3>₹${res1.amt.toLocaleString()}</h3><p>${res1.gigs} Gigs</p></div><div class="comp-card"><small>${res2.label}</small><h3>₹${res2.amt.toLocaleString()}</h3><p>${res2.gigs} Gigs</p></div></div><div class="glass-card" style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>${orgHtml || '<p>No data</p>'}</div>`;
+            
+            orgHtml += `<div class="bk-row" style="border-top:2px solid var(--border); color:var(--text); font-weight:bold;">
+                <div style="width:40%">TOTAL</div>
+                <div style="width:30%">${t1G} (₹${t1E.toLocaleString()})</div>
+                <div style="width:30%">${t2G} (₹${t2E.toLocaleString()})</div>
+            </div>`;
+
+            document.getElementById('compResult').innerHTML = `
+            <div class="comp-grid">
+                <div class="comp-card" onclick="openCompDetail('p1')">
+                    <small>${res1.label}</small>
+                    <h3>₹${res1.amt.toLocaleString()}</h3>
+                    <p>${res1.gigs} Gigs</p>
+                </div>
+                <div class="comp-card" onclick="openCompDetail('p2')">
+                    <small>${res2.label}</small>
+                    <h3>₹${res2.amt.toLocaleString()}</h3>
+                    <p>${res2.gigs} Gigs</p>
+                </div>
+            </div>
+            <div class="glass-card" style="margin-top:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>
+                ${orgHtml || '<p>No data</p>'}
+            </div>`;
+        }
+
+        function openCompDetail(key) {
+            const d = compData[key];
+            if(d && d.list.length > 0) {
+                renderBreakdownModal(`${d.label} Breakdown`, compData.mem, d.list, d.sLbl, d.eLbl);
+            } else {
+                notify("No data for this period", "warning");
+            }
+        }
+
+        function openOrgDetail(key, orgName) {
+            const d = compData[key];
+            if(d && d.orgs[orgName] && d.orgs[orgName].list.length > 0) {
+                 renderBreakdownModal(`${orgName} (${d.label})`, compData.mem, d.orgs[orgName].list, d.sLbl, d.eLbl);
+            }
         }
 
         function updateDash() {
             const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
-            const now = new Date(); let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
+            
+            // ROBUST LOCAL DATE FIX:
+            const todayStr = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD in local time
+            
+            const d = new Date(); // Current date object for year/month checking
+
+            let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
             const start = new Date(document.getElementById('dashStartYear').value, document.getElementById('dashStartMonth').value, 1);
             const end = new Date(document.getElementById('dashEndYear').value, document.getElementById('dashEndMonth').value, 31);
-            let monthlyGrowth = new Array(12).fill(0);
+            
+            const gy1 = parseInt(document.getElementById('growthY1').value);
+            const gy2 = document.getElementById('growthY2').value === 'none' ? null : parseInt(document.getElementById('growthY2').value);
+            const gy3 = document.getElementById('growthY3').value === 'none' ? null : parseInt(document.getElementById('growthY3').value);
+            
+            let gData1 = new Array(12).fill(0);
+            let gData2 = new Array(12).fill(0);
+            let gData3 = new Array(12).fill(0);
+
+            let gCount1 = new Array(12).fill(0);
+            let gCount2 = new Array(12).fill(0);
+            let gCount3 = new Array(12).fill(0);
+
+            let reminders = [];
+
             db.shows.forEach(s => { 
                 const sd = new Date(s.date); 
-                s.payouts.forEach(p => { 
-                    if(p.name === mem) { 
-                        lAmt += p.amt; lG++; 
-                        if(sd.getMonth()===now.getMonth()&&sd.getFullYear()===now.getFullYear()){mAmt+=p.amt; mG++;} 
-                        if(sd.getFullYear()===now.getFullYear()){
-                            yAmt+=p.amt; yG++;
-                            monthlyGrowth[sd.getMonth()] += p.amt;
-                        } 
-                        if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
-                    }
-                });
+                
+                // REMINDER CHECK (String Comparison) - Shows Today!
+                if(s.date === todayStr) {
+                    reminders.push(s);
+                }
+
+                // STATS LOGIC: ONLY IF DATE IS STRICTLY LESS THAN TODAY
+                // (Means yesterday or earlier)
+                if(s.date < todayStr) {
+                    s.payouts.forEach(p => { 
+                        if(p.name === mem) { 
+                            lAmt += p.amt; lG++; 
+                            if(sd.getMonth()===d.getMonth() && sd.getFullYear()===d.getFullYear()){mAmt+=p.amt; mG++;} 
+                            if(sd.getFullYear()===d.getFullYear()){ yAmt+=p.amt; yG++; } 
+                            if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
+                            
+                            if(sd.getFullYear() === gy1) { gData1[sd.getMonth()] += p.amt; gCount1[sd.getMonth()]++; }
+                            if(gy2 && sd.getFullYear() === gy2) { gData2[sd.getMonth()] += p.amt; gCount2[sd.getMonth()]++; }
+                            if(gy3 && sd.getFullYear() === gy3) { gData3[sd.getMonth()] += p.amt; gCount3[sd.getMonth()]++; }
+                        }
+                    });
+                }
             });
+
+            const rDiv = document.getElementById('reminderArea');
+            if(reminders.length > 0) {
+                rDiv.innerHTML = reminders.map(r => `<div class="reminder-box" onclick="viewGigDetails(${r.id})">🔔 TODAY: ${r.venue} (${r.org})</div>`).join('');
+                rDiv.style.display = 'block';
+            } else {
+                rDiv.style.display = 'none';
+            }
+
             document.getElementById('dashLifetimeAmt').innerText=`₹${lAmt.toLocaleString()}`; document.getElementById('dashLifetimeGigs').innerText=`${lG} Shows`;
             document.getElementById('dashMonthAmt').innerText=`₹${mAmt.toLocaleString()}`; document.getElementById('dashMonthGigs').innerText=`${mG} Gigs`;
             document.getElementById('dashYearAmt').innerText=`₹${yAmt.toLocaleString()}`; document.getElementById('dashYearGigs').innerText=`${yG} Gigs`;
             document.getElementById('dashCustomAmt').innerText=`₹${cAmt.toLocaleString()}`; document.getElementById('dashCustomGigs').innerText=`${cG} Shows`;
-            renderDashGrowthChart(monthlyGrowth);
+            
+            renderDashGrowthChart(gData1, gData2, gData3, gy1, gy2, gy3, gCount1, gCount2, gCount3);
         }
 
-        function renderDashGrowthChart(data) {
+        function renderDashGrowthChart(d1, d2, d3, y1, y2, y3, c1, c2, c3) {
             if(dashLineChart) dashLineChart.destroy();
             const ctx = document.getElementById('dashGrowthChart').getContext('2d');
+            
+            let datasets = [{
+                label: y1,
+                data: d1,
+                gigCounts: c1,
+                borderColor: '#8b5cf6',
+                backgroundColor: 'rgba(139,92,246,0.1)',
+                tension: 0.3, borderWidth: 2, pointRadius: 3
+            }];
+
+            if(y2 !== null) {
+                datasets.push({
+                    label: y2,
+                    data: d2,
+                    gigCounts: c2,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.0)',
+                    tension: 0.3, borderWidth: 2, pointRadius: 3
+                });
+            }
+
+            if(y3 !== null) {
+                datasets.push({
+                    label: y3,
+                    data: d3,
+                    gigCounts: c3,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,0.0)',
+                    tension: 0.3, borderWidth: 2, pointRadius: 3
+                });
+            }
+
             dashLineChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: months.map(m => m.substring(0,3)),
-                    datasets: [{
-                        label: 'Income',
-                        data: data,
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139,92,246,0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointRadius: 3
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        label += '₹' + context.parsed.y.toLocaleString();
+                                    }
+                                    let count = context.dataset.gigCounts[context.dataIndex];
+                                    return label + ' (' + count + ' Gigs)';
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
                         x: { grid: { display: false }, ticks: { font: { size: 10 } } }
@@ -483,7 +698,7 @@
         }
 
         function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
-        function populateFilters(m, y, a=true) { document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); const yrs=[2023,2024,2025,2026,2027]; document.getElementById(y).innerHTML = yrs.map(v=>`<option value="${v}">${v}</option>`).join(''); }
+        function populateFilters(m, y, a=true) { document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); const yrs=[2023,2024,2025,2026,2027,2028]; document.getElementById(y).innerHTML = yrs.map(v=>`<option value="${v}">${v}</option>`).join(''); }
         function addDirectory() { const v=document.getElementById('dirInput').value, t=document.getElementById('dirType').value; if(v){ db.dir.push({name:v, type:t}); saveDB(); document.getElementById('dirInput').value=""; } }
         function delDir(i) { db.dir.splice(i,1); saveDB(); }
 
@@ -521,7 +736,15 @@
                 });
             }); 
             const id=document.getElementById('editId').value; 
-            const g={id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), payouts: pA}; 
+            const g={
+                id:id?parseInt(id):Date.now(), 
+                venue:v, 
+                org:document.getElementById('orgName').value, 
+                date:document.getElementById('gDate').value, 
+                deal:parseFloat(document.getElementById('gDeal').value||0),
+                note: document.getElementById('gNote').value,
+                payouts: pA
+            }; 
             if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
             saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
         }
@@ -532,24 +755,48 @@
             const s=db.shows.find(x=>x.id===id); 
             document.getElementById('modalBody').innerHTML = `
                 <span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span>
-                <h3>${s.venue}</h3>
-                <p style="font-size:13px">${formatD(s.date)}</p>
-                <div style="border-top:1px solid var(--border); margin-top:10px">
+                <h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3>
+                <h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4>
+                <p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p>
+                
+                <div style="background:var(--bg); padding:12px; border-radius:10px; margin-bottom:15px; border:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600;">Total Deal</span>
+                        <span style="font-size:18px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span>
+                    </div>
+                </div>
+                
+                ${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}
+
+                <div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">
                     ${s.payouts.map(p=>`
-                        <div style="border-bottom:1px solid var(--border); padding:8px 0; text-align:left;">
+                        <div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;">
                             <div style="display:flex; justify-content:space-between;">
-                                <span>${p.name} (${p.mode})</span>
+                                <span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span>
                                 <strong>₹${p.amt}</strong>
                             </div>
-                            ${p.note ? `<small style="color:var(--dim)">Note: ${p.note}</small>` : ''}
+                            ${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}
                         </div>
                     `).join('')}
                 </div>
-                <div style="display:flex; gap:10px; margin-top:15px;">
-                    <button class="btn-main" onclick="exportGigPDF(${id})">PDF</button>
-                    <button class="btn-main" style="background:var(--info)" onclick="editGig(${id})">EDIT</button>
-                </div>`; 
+                
+                <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
+                    <button class="btn-main" style="flex:1" onclick="exportGigPDF(${id})">PDF</button>
+                    <button class="btn-main" style="background:var(--info); flex:1" onclick="editGig(${id})">EDIT</button>
+                </div>
+                <button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
             document.getElementById('detailModal').style.display='flex'; 
+        }
+
+        function deleteGig(id) {
+            if(confirm("Are you sure you want to delete this Gig entry? This cannot be undone.")) {
+                db.shows = db.shows.filter(s => s.id !== id);
+                saveDB();
+                document.getElementById('detailModal').style.display='none';
+                renderHistory();
+                updateDash();
+                notify("Gig Deleted", "danger");
+            }
         }
 
         function exportMemberPDF() {
@@ -576,38 +823,58 @@
                 const em = parseInt(document.getElementById('dashEndMonth').value); const ey = parseInt(document.getElementById('dashEndYear').value);
                 start = new Date(sy, sm, 1); end = new Date(ey, em, 31); title="Custom Period"; sl = `${months[sm]} ${sy}`; el = `${months[em]} ${ey}`;
             }
-            const data = []; db.shows.forEach(s => { if(new Date(s.date)>=start && new Date(s.date)<=end){ s.payouts.forEach(p=>{if(p.name===mem) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
+            const data = []; db.shows.forEach(s => { if(new Date(s.date)>=start && new Date(s.date)<=end){ s.payouts.forEach(p=>{if(p.name===mem) data.push({id: s.id, date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
             renderBreakdownModal(title, mem, data, sl, el);
         }
         function renderBreakdownModal(title, entity, data, sl, el) {
             let html = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3>${title}</h3><p>${entity}</p><div style="margin-top:15px; border-top:1px solid var(--border)">`;
-            let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; html += `<div class="bk-row"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; });
+            let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; 
+                // Add click event to open full details if ID is present
+                const clk = i.id ? `onclick="viewGigDetails(${i.id})"` : '';
+                const cursorStyle = i.id ? 'cursor:pointer;' : '';
+                html += `<div class="bk-row" ${clk} style="${cursorStyle}"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; 
+            });
             html += `<div style="display:flex; justify-content:space-between; padding:15px 0; color:var(--accent);"><strong>TOTAL</strong><strong>₹${t.toLocaleString()}</strong></div></div><button class="btn-main" id="dlBreakdownPdf">DOWNLOAD PDF</button>`;
             document.getElementById('modalBody').innerHTML = html; document.getElementById('detailModal').style.display = 'flex';
             document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el);
         }
         function toggleAnalysisMode() { const m = document.getElementById('analysisType').value; document.getElementById('memberSection').style.display=m==='member'?'block':'none'; document.getElementById('orgSection').style.display=m==='organizer'?'block':'none'; if(m==='member'){ const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; document.getElementById('memSelect').innerHTML = '<option value="">Select Member</option>' + ms.map(n => `<option value="${n}">${n}</option>`).join(''); } triggerAnalysis(); }
         function triggerAnalysis() { const mode = document.getElementById('analysisType').value; if(mode === 'member') runMemberAnalysis(); else runOrgAnalysis(); }
-        function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=s && d<=e){ x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}});}}); document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6' }]} }); }
+        function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; 
+            const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; 
+            const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; 
+            const now = new Date();
+            db.shows.forEach(x=>{ const d=new Date(x.date); 
+                // Only count past gigs (Strictly less than today)
+                if(d >= s && d <= e && x.date < todayStr){ 
+                    x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}});
+                }
+            }); 
+            document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6' }]} }); }
+        
         function runOrgAnalysis() {
             const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value;
             const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value;
             const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
             const om={}; let tr=0, tg=0;
-            db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=start && d <= end){ 
-                if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; 
-                let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0;
-                let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || '';
-                om[x.org].r+=x.deal; om[x.org].c++; 
-                om[x.org].list.push({date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn});
-                tr+=x.deal; tg++; 
-            }});
+            const now = new Date();
+            db.shows.forEach(x=>{ const d=new Date(x.date); 
+                // Only count past gigs (Strictly less than today)
+                if(d>=start && d <= end && x.date < todayStr){ 
+                    if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; 
+                    let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0;
+                    let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || '';
+                    om[x.org].r+=x.deal; om[x.org].c++; 
+                    om[x.org].list.push({id: x.id, date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn});
+                    tr+=x.deal; tg++; 
+                }
+            });
             document.getElementById('orgSection').style.display='block'; document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`;
             if(oChart) oChart.destroy();
             oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: Object.keys(om), datasets: [{ data: Object.values(om).map(v=>v.r), backgroundColor: ['#8b5cf6','#10b981','#f59e0b','#3b82f6','#f43f5e'] }]}, options: { onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = oChart.data.labels[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } }, plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } } } });
             document.getElementById('orgDetailsList').innerHTML = Object.keys(om).sort((a,b)=>om[b].r-om[a].r).map(l => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`}).join('');
         }
-        function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
+        function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('gNote').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
         function editGig(id) { 
             const s=db.shows.find(x=>x.id==id); 
             document.getElementById('detailModal').style.display='none'; 
@@ -616,6 +883,7 @@
             document.getElementById('orgName').value=s.org; 
             document.getElementById('gDate').value=s.date; 
             document.getElementById('gDeal').value=s.deal; 
+            document.getElementById('gNote').value=s.note || ''; 
             document.getElementById('payoutArea').innerHTML=''; 
             s.payouts.forEach(p=>{
                 addRow(p.name); 
