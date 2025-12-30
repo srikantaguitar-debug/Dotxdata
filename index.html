@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,9 +174,12 @@
         </div>
 
         <div id="history" class="page">
-            <div class="glass-card" style="padding: 10px; display: flex; gap: 5px;">
-                <select id="histMonth" onchange="renderHistory()"></select>
-                <select id="histYear" onchange="renderHistory()"></select>
+            <div class="glass-card" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; gap: 5px;">
+                    <select id="histMonth" onchange="renderHistory()"></select>
+                    <select id="histYear" onchange="renderHistory()"></select>
+                </div>
+                <input type="text" id="histSearch" placeholder="🔍 Search Venue, Org, Date, Amount..." onkeyup="renderHistory()" style="margin:0; padding: 10px; font-size:14px;">
             </div>
             <div id="hList"></div>
         </div>
@@ -698,7 +700,19 @@
         }
 
         function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
-        function populateFilters(m, y, a=true) { document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); const yrs=[2023,2024,2025,2026,2027,2028]; document.getElementById(y).innerHTML = yrs.map(v=>`<option value="${v}">${v}</option>`).join(''); }
+        
+        // MODIFIED FOR LIFETIME OPTION IN HISTORY
+        function populateFilters(m, y, a=true) { 
+            document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); 
+            const yrs=[2023,2024,2025,2026,2027,2028]; 
+            let yOpts = yrs.map(v=>`<option value="${v}">${v}</option>`).join('');
+            // Add Lifetime option if it's the history year dropdown
+            if(y === 'histYear') {
+                yOpts = '<option value="lifetime">Lifetime</option>' + yOpts;
+            }
+            document.getElementById(y).innerHTML = yOpts; 
+        }
+
         function addDirectory() { const v=document.getElementById('dirInput').value, t=document.getElementById('dirType').value; if(v){ db.dir.push({name:v, type:t}); saveDB(); document.getElementById('dirInput').value=""; } }
         function delDir(i) { db.dir.splice(i,1); saveDB(); }
 
@@ -749,7 +763,35 @@
             saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
         }
 
-        function renderHistory() { const fM = document.getElementById('histMonth').value, fY = document.getElementById('histYear').value; const list = db.shows.filter(s => { const d = new Date(s.date); return d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM); }).sort((a,b)=>new Date(b.date)-new Date(a.date)); document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br>₹${s.deal}</div>`).join('') || '<p style="text-align:center">No Data</p>'; }
+        // MODIFIED FOR SEARCH AND LIFETIME
+        function renderHistory() { 
+            const fM = document.getElementById('histMonth').value; 
+            const fY = document.getElementById('histYear').value; 
+            const q = document.getElementById('histSearch').value.toLowerCase().trim();
+
+            const list = db.shows.filter(s => { 
+                const d = new Date(s.date); 
+                
+                // 1. Date Filtering
+                let dateMatch = false;
+                if(fY === 'lifetime') {
+                    dateMatch = true; // Show all years if lifetime is selected
+                } else {
+                    dateMatch = d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM);
+                }
+                
+                if(!dateMatch) return false;
+
+                // 2. Search Filtering (Venue, Org, Date, Amount)
+                if(!q) return true; // No search query, show all that matched date
+                
+                const searchStr = `${s.venue} ${s.org} ${formatD(s.date)} ${s.deal}`.toLowerCase();
+                return searchStr.includes(q);
+
+            }).sort((a,b)=>new Date(b.date)-new Date(a.date)); 
+            
+            document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br>₹${s.deal}</div>`).join('') || '<p style="text-align:center">No Data</p>'; 
+        }
         
         function viewGigDetails(id) { 
             const s=db.shows.find(x=>x.id===id); 
@@ -844,6 +886,7 @@
             const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; 
             const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; 
             const now = new Date();
+            const todayStr = new Date().toLocaleDateString('en-CA');
             db.shows.forEach(x=>{ const d=new Date(x.date); 
                 // Only count past gigs (Strictly less than today)
                 if(d >= s && d <= e && x.date < todayStr){ 
@@ -858,6 +901,7 @@
             const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
             const om={}; let tr=0, tg=0;
             const now = new Date();
+            const todayStr = new Date().toLocaleDateString('en-CA');
             db.shows.forEach(x=>{ const d=new Date(x.date); 
                 // Only count past gigs (Strictly less than today)
                 if(d>=start && d <= end && x.date < todayStr){ 
