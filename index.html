@@ -9,74 +9,112 @@
     <meta name="theme-color" content="#8b5cf6">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         :root { 
-            --bg: #f0f2f5; --card: #ffffff; --accent: #8b5cf6; 
-            --grad: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
-            --text: #111827; --dim: #4b5563; --border: #d1d5db; 
+            --bg: #f3f4f6; --card: rgba(255, 255, 255, 0.95); --accent: #8b5cf6; 
+            --grad: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            --grad-2: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+            --grad-3: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            --grad-4: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --text: #111827; --dim: #6b7280; --border: #e5e7eb; 
             --success: #10b981; --info: #3b82f6; --danger: #ef4444; --warning: #f59e0b;
+            --shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+            --glass: blur(12px) saturate(180%);
         }
         [data-theme="dark"] { 
-            --bg: #050810; --card: #111827; --text: #f9fafb; 
-            --dim: #9ca3af; --border: #1f2937; 
+            --bg: #0f172a; --card: rgba(30, 41, 59, 0.90); --text: #f3f4f6; 
+            --dim: #94a3b8; --border: #334155; 
+            --shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
         }
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; transition: 0.3s; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-        .container { padding: 12px; max-width: 100%; margin: auto; box-sizing: border-box; }
-        header { background: var(--grad); padding: 15px 0; text-align: center; border-radius: 0 0 20px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .nav { display: flex; background: var(--card); position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-        .nav-btn { flex: 1; padding: 12px 2px; border: none; background: none; color: var(--dim); font-weight: 600; cursor: pointer; font-size: 8.5px; text-transform: uppercase; }
-        .nav-btn.active { color: var(--accent); border-top: 3px solid var(--accent); }
-        .page { display: none; padding: 10px 0; animation: fadeIn 0.3s ease; }
-        .page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .glass-card { background: var(--card); border-radius: 15px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); }
-        input, select, textarea { width: 100%; padding: 12px; margin: 6px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;}
-        textarea { resize: vertical; height: 80px; font-family: inherit; }
-        .btn-main { background: var(--grad); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 14px; }
-        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 85%; }
-        .toast { padding: 14px 20px; border-radius: 12px; color: white; font-weight: 600; margin-bottom: 10px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; border: 1px solid rgba(255,255,255,0.2); }
-        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 8000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-        .modal-content { background: var(--card); border-radius: 25px; padding: 25px; border: 1px solid var(--border); width: 92%; max-width: 420px; position: relative; text-align: center; overflow-y: auto; max-height: 85vh; }
-        .close-x { position: absolute; right: 15px; top: 15px; font-size: 26px; color: var(--dim); cursor: pointer; line-height: 1; }
-        .pin-dots { display: flex; gap: 15px; margin: 20px auto; justify-content: center; }
-        .dot { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--accent); transition: 0.2s; }
-        .dot.active { background: var(--accent); transform: scale(1.2); }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 85px; transition: background 0.3s; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        .container { padding: 15px; max-width: 100%; margin: auto; box-sizing: border-box; }
         
-        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 360px; margin: 0 auto; }
-        .num-btn { width: 75px; height: 75px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 32px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; user-select: none; margin: auto; }
-        .num-btn:active { background: var(--accent); color: white; transform: scale(0.90); box-shadow: 0 0 15px var(--accent); }
+        /* Stylish Header (SMALLER) */
+        header { background: var(--grad); padding: 15px 0 20px; text-align: center; border-radius: 0 0 30px 30px; box-shadow: 0 5px 20px rgba(139, 92, 246, 0.4); position: relative; z-index: 10; }
         
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .stat-box { padding: 15px 10px; border-radius: 15px; text-align: center; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: 0.2s; }
-        .stat-box h2 { margin: 5px 0; font-size: 20px; color: var(--accent); }
-        .stat-box small { color: var(--dim); font-size: 11px; text-transform: uppercase; }
-        .stat-full { grid-column: span 2; background: var(--grad); color: white; border: none; }
-        .stat-full h2 { color: white; font-size: 28px; }
-        #logoPreview { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin: 0 auto 10px; display: none; }
-        .bk-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; text-align: left; }
+        /* BOTTOM NAV BAR (FIXED & INSTANT) */
+        .nav { display: flex; background: var(--card); position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; border-top: 1px solid var(--border); box-shadow: 0 -5px 20px rgba(0,0,0,0.1); backdrop-filter: var(--glass); padding: 6px 0; justify-content: space-around; }
+        
+        .nav-btn { flex: 1; padding: 8px 0; border: none; background: none; color: var(--dim); font-weight: 600; cursor: pointer; font-size: 10px; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 3px; border-radius: 12px; transition: transform 0.1s; }
+        .nav-btn.active { color: var(--accent); transform: scale(1.05); }
+        .nav-btn.active span { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; font-size: 18px; }
+        .nav-btn span { font-size: 18px; margin-bottom: 2px; display: block; }
+        
+        /* Fast Page Transition */
+        .page { display: none; opacity: 0; transform: translateY(10px); transition: opacity 0.2s ease-out, transform 0.2s ease-out; }
+        .page.active { display: block; opacity: 1; transform: translateY(0); }
+        
+        /* Enhanced Cards */
+        .glass-card { background: var(--card); border-radius: 22px; padding: 18px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: var(--shadow); backdrop-filter: var(--glass); position: relative; overflow: hidden; }
+        .glass-card::after { content: ''; position: absolute; top:0; left:0; width: 4px; height: 100%; background: var(--grad); opacity: 0.8; }
 
-        .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .comp-card { background: var(--grad); color: white; padding: 15px; border-radius: 15px; text-align: center; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        input, select, textarea { width: 100%; padding: 14px; margin: 8px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 14px; font-size: 14px; outline: none; box-sizing: border-box; transition: 0.2s; font-family: inherit; font-weight: 500; }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+        textarea { resize: vertical; height: 90px; }
+        
+        .btn-main { background: var(--grad); color: white; border: none; padding: 15px; border-radius: 14px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; font-size: 14px; box-shadow: 0 6px 15px rgba(139, 92, 246, 0.3); transition: 0.2s; letter-spacing: 0.5px; text-transform: uppercase; }
+        .btn-main:active { transform: scale(0.97); }
+        
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; }
+        .toast { padding: 14px 20px; border-radius: 14px; color: white; font-weight: 600; margin-bottom: 10px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s ease; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); }
+        
+        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 8000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9000; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .modal-content { background: var(--card); border-radius: 28px; padding: 25px; border: 1px solid var(--border); width: 88%; max-width: 400px; position: relative; text-align: center; overflow-y: auto; max-height: 85vh; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+        .close-x { position: absolute; right: 20px; top: 20px; font-size: 24px; color: var(--dim); cursor: pointer; line-height: 1; background: var(--bg); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .pin-dots { display: flex; gap: 18px; margin: 30px auto; justify-content: center; }
+        .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent); transition: 0.2s; }
+        .dot.active { background: var(--accent); transform: scale(1.3); box-shadow: 0 0 15px var(--accent); }
+        
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 320px; margin: 0 auto; }
+        .num-btn { width: 72px; height: 72px; border-radius: 26px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 28px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s ease; user-select: none; margin: auto; box-shadow: var(--shadow); }
+        .num-btn:active { background: var(--accent); color: white; transform: scale(0.92); border-color: transparent; }
+        
+        /* Stat Boxes */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        .stat-box { padding: 20px 15px; border-radius: 22px; text-align: center; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; box-shadow: var(--shadow); }
+        .stat-box:active { transform: scale(0.98); }
+        .stat-box h2 { margin: 6px 0; font-size: 24px; font-weight: 800; }
+        .stat-box small { font-size: 11px; text-transform: uppercase; font-weight: 700; opacity: 0.9; letter-spacing: 0.5px; }
+        
+        /* Colorful Stat Modifiers */
+        .stat-full { grid-column: span 2; border: none; color: white; }
+        .stat-purple { background: var(--grad); box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35); }
+        .stat-blue { background: var(--grad-2); color: white; border: none; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35); }
+        .stat-orange { background: var(--grad-3); color: white; border: none; box-shadow: 0 8px 20px rgba(249, 115, 22, 0.35); }
+        .stat-green { background: var(--grad-4); color: white; border: none; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35); }
+        
+        .stat-box h2 { color: inherit; }
+        .stat-box small { color: inherit; }
+
+        #logoPreview { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin: 0 auto 15px; display: none; box-shadow: 0 6px 15px rgba(0,0,0,0.2); }
+        .bk-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 13px; text-align: left; align-items: center; }
+
+        .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .comp-card { background: var(--grad); color: white; padding: 18px; border-radius: 22px; text-align: center; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35); }
         .comp-card:active { transform: scale(0.98); opacity: 0.9; }
-        .comp-card h3 { margin: 5px 0; font-size: 22px; color: white; }
-        .comp-card p { margin: 0; font-size: 12px; opacity: 0.9; }
-        .comp-card small { font-size: 11px; text-transform: uppercase; opacity: 0.8; }
-        .clickable-cell { cursor: pointer; text-decoration: underline; text-decoration-color: var(--dim); text-underline-offset: 3px; }
+        .comp-card h3 { margin: 6px 0; font-size: 22px; color: white; font-weight: 800; }
+        .comp-card p { margin: 0; font-size: 12px; opacity: 0.95; font-weight: 600; }
+        .clickable-cell { cursor: pointer; color: var(--info); font-weight: 700; text-decoration: none; }
         
         /* SCROLLABLE LIST CSS */
-        .scroll-list { max-height: 250px; overflow-y: auto; padding-right: 5px; border-top: 1px solid var(--border); margin-top: 15px; }
-        .scroll-list::-webkit-scrollbar { width: 4px; }
+        .scroll-list { max-height: 280px; overflow-y: auto; padding-right: 5px; border-top: 1px solid var(--border); margin-top: 15px; }
+        .scroll-list::-webkit-scrollbar { width: 3px; }
         .scroll-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 4px; }
 
         /* FIXED CSS FOR REMINDER */
-        .reminder-box { background: var(--warning); color: #fff; padding: 15px; border-radius: 15px; margin-bottom: 12px; display: block; animation: pulse 2s infinite; text-align: center; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); font-weight: 600; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); }
+        .reminder-box { background: var(--grad-3); color: #fff; padding: 15px; border-radius: 18px; margin-bottom: 15px; display: block; animation: pulse 2s infinite; text-align: center; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); font-weight: 700; box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+        .chip-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .chip { background: var(--bg); border: 1px solid var(--border); padding: 6px 14px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+        .chip span { color: var(--danger); cursor: pointer; font-weight: bold; font-size: 15px; }
 
     </style>
 </head>
@@ -85,13 +123,14 @@
     <div id="toast-container"></div>
 
     <div id="lockScreen">
-        <h2 style="margin:0 0 25px 0; color:var(--accent); font-size: 28px;">🔒 DOTX LOGIN</h2>
+        <h2 style="margin:0 0 10px 0; color:var(--danger); font-size: 42px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">DOTX</h2>
+        <p style="color:var(--dim); margin:0 0 30px 0;">Enter security PIN</p>
         <div class="pin-dots" id="loginDots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         <div class="numpad">
             <div class="num-btn" onclick="pressNum('1')">1</div><div class="num-btn" onclick="pressNum('2')">2</div><div class="num-btn" onclick="pressNum('3')">3</div>
             <div class="num-btn" onclick="pressNum('4')">4</div><div class="num-btn" onclick="pressNum('5')">5</div><div class="num-btn" onclick="pressNum('6')">6</div>
             <div class="num-btn" onclick="pressNum('7')">7</div><div class="num-btn" onclick="pressNum('8')">8</div><div class="num-btn" onclick="pressNum('9')">9</div>
-            <div class="num-btn" style="border:none; color:var(--danger); font-size:16px" onclick="pressNum('C')">CLR</div><div class="num-btn" onclick="pressNum('0')">0</div><div class="num-btn" style="border:none; color:var(--dim); font-size:16px" onclick="pressNum('B')">DEL</div>
+            <div class="num-btn" style="border:none; color:var(--danger); font-size:16px; box-shadow:none; background:transparent;" onclick="pressNum('C')">CLR</div><div class="num-btn" onclick="pressNum('0')">0</div><div class="num-btn" style="border:none; color:var(--dim); font-size:20px; box-shadow:none; background:transparent;" onclick="pressNum('B')">⌫</div>
         </div>
     </div>
 
@@ -111,125 +150,134 @@
 
     <header>
         <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
-            <img id="headerLogo" src="" style="display:none; width:30px; height:30px; border-radius:50%; border:2px solid white;">
-            <h3 style="margin:0; color:white;">Dotx Band Data Manager</h3>
+            <img id="headerLogo" src="" style="display:none; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h3 style="margin:0; color:white; font-size: 16px; letter-spacing: 0.5px; font-weight: 800;">Dotx Band Manager</h3>
         </div>
     </header>
 
     <div class="nav">
-        <button class="nav-btn active" id="btn-dash" onclick="showPage('dash')">Dash</button>
-        <button class="nav-btn" id="btn-add" onclick="showPage('add')">Entry</button>
-        <button class="nav-btn" id="btn-history" onclick="showPage('history')">History</button>
-        <button class="nav-btn" id="btn-analysis" onclick="showPage('analysis')">Analysis</button>
-        <button class="nav-btn" id="btn-compare" onclick="showPage('compare')">Compare</button>
-        <button class="nav-btn" id="btn-tools" onclick="showPage('tools')">Tools</button>
+        <button class="nav-btn active" id="btn-dash" onclick="showPage('dash')"><span>📊</span>Dash</button>
+        <button class="nav-btn" id="btn-add" onclick="showPage('add')"><span>➕</span>Entry</button>
+        <button class="nav-btn" id="btn-history" onclick="showPage('history')"><span>📅</span>History</button>
+        <button class="nav-btn" id="btn-analysis" onclick="showPage('analysis')"><span>📈</span>Analysis</button>
+        <button class="nav-btn" id="btn-compare" onclick="showPage('compare')"><span>⚖️</span>Compare</button>
+        <button class="nav-btn" id="btn-tools" onclick="showPage('tools')"><span>⚙️</span>Tools</button>
     </div>
 
     <div class="container">
         <div id="dash" class="page active">
             <div id="reminderArea"></div>
-            <div class="glass-card">
-                <div style="display:flex; gap:5px; margin-bottom:5px;">
-                    <select id="dashMemSelect" onchange="updateDash()" style="flex:2"></select>
-                    <select id="dashAvgMode" onchange="updateDash()" style="flex:1.5; font-size:11px;">
-                        <option value="show">Avg/Show</option>
-                        <option value="month">Avg/Month</option>
-                    </select>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-box stat-full" onclick="viewBreakdown('lifetime')">
-                        <small>Lifetime Earnings</small><h2 id="dashLifetimeAmt">₹0</h2><span id="dashLifetimeGigs">0 Shows</span>
-                    </div>
-                    <div class="stat-box" onclick="viewBreakdown('month')">
-                        <small>Current Month</small><h2 id="dashMonthAmt">₹0</h2><span id="dashMonthGigs">0 Gigs</span>
-                    </div>
-                    <div class="stat-box" onclick="viewBreakdown('year')">
-                        <small>Current Year</small><h2 id="dashYearAmt">₹0</h2><span id="dashYearGigs">0 Gigs</span>
-                    </div>
-                </div>
+
+            <div class="glass-card" style="padding: 15px; display:flex; gap:12px; align-items:center;">
+                 <select id="dashMemSelect" onchange="updateDash()" style="flex:2; margin:0; border:2px solid var(--accent); color:var(--accent); font-weight:700; background:var(--bg);"></select>
+                 <select id="dashAvgMode" onchange="updateDash()" style="flex:1.5; margin:0; font-size:12px; font-weight:700; background:var(--bg);">
+                    <option value="show">Avg/Show</option>
+                    <option value="month">Avg/Month</option>
+                </select>
             </div>
             
             <div class="glass-card">
-                <h4 style="margin:0 0 10px 0; color:var(--accent);">Income Comparison</h4>
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-bottom:10px;">
-                    <select id="growthY1" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
-                    <select id="growthY2" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
-                    <select id="growthY3" style="font-size:12px; padding:8px" onchange="updateDash()"></select>
+                <div class="stat-box stat-full stat-green" style="margin-bottom:15px;" onclick="viewBreakdown('custom')">
+                    <small style="opacity:0.9">Selected Period Income</small>
+                    <h2 id="dashCustomAmt" style="font-size:32px; margin: 8px 0;">₹0</h2>
+                    <span id="dashCustomGigs" style="background:rgba(255,255,255,0.25); padding:5px 14px; border-radius:12px; font-size:13px; font-weight:700;">0 Shows</span>
+                </div>
+
+                <h4 style="margin:0 0 10px 0; color:var(--text); font-weight:700; font-size:14px; border-bottom:1px solid var(--border); padding-bottom:8px;">Selected Period Overview</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <select id="dashStartMonth" onchange="updateDash()" style="font-size:12px; padding:10px;"></select><select id="dashStartYear" onchange="updateDash()" style="font-size:12px; padding:10px;"></select>
+                    <select id="dashEndMonth" onchange="updateDash()" style="font-size:12px; padding:10px;"></select><select id="dashEndYear" onchange="updateDash()" style="font-size:12px; padding:10px;"></select>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat-box stat-blue" onclick="viewBreakdown('month')">
+                        <small>This Month</small><h2 id="dashMonthAmt">₹0</h2><span id="dashMonthGigs" style="font-size:11px; opacity:0.9">0 Gigs</span>
+                    </div>
+                    <div class="stat-box stat-orange" onclick="viewBreakdown('year')">
+                        <small>This Year</small><h2 id="dashYearAmt">₹0</h2><span id="dashYearGigs" style="font-size:11px; opacity:0.9">0 Gigs</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h4 style="margin:0; color:var(--accent); font-weight:800;">Growth Chart</h4>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <select id="growthY1" style="font-size:11px; padding:10px" onchange="updateDash()"></select>
+                    <select id="growthY2" style="font-size:11px; padding:10px" onchange="updateDash()"></select>
+                    <select id="growthY3" style="font-size:11px; padding:10px" onchange="updateDash()"></select>
                 </div>
                 <div style="height:220px;"><canvas id="dashGrowthChart"></canvas></div>
             </div>
 
             <div class="glass-card">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                    <select id="dashStartMonth" onchange="updateDash()"></select><select id="dashStartYear" onchange="updateDash()"></select>
-                    <select id="dashEndMonth" onchange="updateDash()"></select><select id="dashEndYear" onchange="updateDash()"></select>
-                </div>
-                <div class="stat-box stat-full" style="margin-top:12px; background:var(--info);" onclick="viewBreakdown('custom')">
-                    <small>Selected Period Income</small><h2 id="dashCustomAmt">₹0</h2><span id="dashCustomGigs">0 Shows</span>
+                <div class="stat-box stat-full stat-purple" style="border:none;" onclick="viewBreakdown('lifetime')">
+                    <small>Lifetime Earnings</small><h2 id="dashLifetimeAmt">₹0</h2><span id="dashLifetimeGigs" style="font-size:13px; opacity:0.85; font-weight:600;">0 Shows</span>
                 </div>
             </div>
         </div>
 
         <div id="add" class="page">
             <div class="glass-card">
-                <h4 id="formTitle">Gig Entry</h4>
+                <h4 id="formTitle" style="color:var(--accent); margin-top:0; font-size:18px;">Gig Entry</h4>
                 <input type="hidden" id="editId">
-                <input type="text" id="vName" placeholder="Venue Name">
+                <input type="text" id="vName" placeholder="Venue Name" style="font-weight:700;">
                 <input list="orgDList" id="orgName" placeholder="Organizer Name">
                 <input type="date" id="gDate">
-                <input type="number" id="gDeal" placeholder="Total Deal ₹">
+                <input type="number" id="gDeal" placeholder="Total Deal ₹" style="color:var(--success); font-weight:800; font-size:16px;">
                 <textarea id="gNote" placeholder="General Gig Note (e.g. Sound check time, Advance info...)"></textarea>
-                <div id="payoutArea"></div>
-                <div style="display:flex; gap:10px;">
-                    <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--success); font-size:11px;">+ Band Pay</button>
-                    <button type="button" onclick="addRow()" class="btn-main" style="background:var(--info); font-size:11px;">+ Member</button>
+                <div id="payoutArea" style="margin-top:15px;"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--grad); font-size:12px; margin-top:0;">+ Band Pay</button>
+                    <button type="button" onclick="addRow()" class="btn-main" style="background:var(--info); font-size:12px; margin-top:0;">+ Member</button>
                 </div>
-                <button class="btn-main" onclick="saveShow()">SAVE DATA</button>
-                <button class="btn-main" id="cancelBtn" style="display:none; background:var(--dim)" onclick="resetForm()">CANCEL</button>
+                <button class="btn-main" onclick="saveShow()" style="background:var(--success); margin-top:20px;">SAVE DATA</button>
+                <button class="btn-main" id="cancelBtn" style="display:none; background:var(--dim); margin-top:10px;" onclick="resetForm()">CANCEL</button>
             </div>
         </div>
 
         <div id="history" class="page">
-            <div class="glass-card" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; gap: 5px;">
-                    <select id="histMonth" onchange="renderHistory()"></select>
-                    <select id="histYear" onchange="renderHistory()"></select>
+            <div class="glass-card" style="padding: 18px; display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; gap: 10px;">
+                    <select id="histMonth" onchange="renderHistory()" style="margin:0; flex:1"></select>
+                    <select id="histYear" onchange="renderHistory()" style="margin:0; flex:1"></select>
                 </div>
-                <input type="text" id="histSearch" placeholder="🔍 Search Venue, Org, Date, Amount..." onkeyup="renderHistory()" style="margin:0; padding: 10px; font-size:14px;">
+                <input type="text" id="histSearch" placeholder="🔍 Search Venue, Org, Date..." onkeyup="renderHistory()" style="margin:0; padding: 16px; font-size:15px;">
             </div>
-            <div id="hList"></div>
+            <div id="hList" style="padding-bottom:20px;"></div>
         </div>
 
         <div id="analysis" class="page">
             <div class="glass-card">
-                <div style="display:flex; gap:5px; margin-bottom:10px;">
-                    <select id="analysisType" onchange="toggleAnalysisMode()" style="flex:2"><option value="member">Member Performance</option><option value="organizer">Organizer Business</option></select>
-                    <select id="anaAvgMode" onchange="triggerAnalysis()" style="flex:1.5; font-size:11px;"><option value="show">Avg/Show</option><option value="month">Avg/Month</option></select>
+                <div style="display:flex; gap:5px; margin-bottom:15px;">
+                    <select id="analysisType" onchange="toggleAnalysisMode()" style="flex:2; font-weight:700; color:var(--accent);"><option value="member">Member Performance</option><option value="organizer">Organizer Business</option></select>
+                    <select id="anaAvgMode" onchange="triggerAnalysis()" style="flex:1.5; font-size:11px; font-weight:600;"><option value="show">Avg/Show</option><option value="month">Avg/Month</option></select>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                    <select id="anaStartMonth" onchange="triggerAnalysis()"></select><select id="anaStartYear" onchange="triggerAnalysis()"></select>
-                    <select id="anaEndMonth" onchange="triggerAnalysis()"></select><select id="anaEndYear" onchange="triggerAnalysis()"></select>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <select id="anaStartMonth" onchange="triggerAnalysis()" style="font-size:12px;"></select><select id="anaStartYear" onchange="triggerAnalysis()" style="font-size:12px;"></select>
+                    <select id="anaEndMonth" onchange="triggerAnalysis()" style="font-size:12px;"></select><select id="anaEndYear" onchange="triggerAnalysis()" style="font-size:12px;"></select>
                 </div>
-                <div id="memberSection" style="margin-top:15px;">
+                <div id="memberSection" style="margin-top:20px;">
                     <select id="memSelect" onchange="runMemberAnalysis()"></select>
-                    <div id="memStats" style="display:none; margin-top:15px;">
-                        <div style="background:var(--grad); padding:15px; border-radius:15px; color:white; text-align:center;">
-                            <h2 id="totalSelectedVal">₹0</h2>
-                            <span id="totalSelectedShow">0 Shows</span>
-                            <div id="memAvgStats" style="font-size:12px; margin-top:5px; opacity:0.9">Avg: ₹0 / Show</div>
+                    <div id="memStats" style="display:none; margin-top:20px;">
+                        <div style="background:var(--grad); padding:25px; border-radius:24px; color:white; text-align:center; box-shadow: 0 15px 30px rgba(139, 92, 246, 0.4);">
+                            <h2 id="totalSelectedVal" style="font-size:40px; margin:0;">₹0</h2>
+                            <span id="totalSelectedShow" style="font-size:15px; opacity:0.9; font-weight:600;">0 Shows</span>
+                            <div id="memAvgStats" style="font-size:13px; margin-top:10px; opacity:0.9; border-top:1px solid rgba(255,255,255,0.2); padding-top:10px;">Avg: ₹0 / Show</div>
                         </div>
-                        <button class="btn-main" onclick="exportMemberPDF()">DOWNLOAD PDF REPORT</button>
-                        <div style="height:250px; margin-top:20px;"><canvas id="memChart"></canvas></div>
+                        <button class="btn-main" onclick="exportMemberPDF()" style="background:var(--bg); color:var(--text); border:1px solid var(--border);">DOWNLOAD PDF REPORT</button>
+                        <div style="height:250px; margin-top:25px;"><canvas id="memChart"></canvas></div>
                     </div>
                 </div>
-                <div id="orgSection" style="display:none; margin-top:15px;">
-                    <div style="background:var(--bg); border:1px solid var(--border); padding:15px; border-radius:15px; text-align:center;">
-                        <h2 id="orgPeriodTotal">₹0</h2>
-                        <span id="orgPeriodGigs">0 Shows</span>
-                        <div id="orgAvgStats" style="font-size:12px; margin-top:5px; color:var(--dim)">Avg: ₹0 / Show</div>
+                <div id="orgSection" style="display:none; margin-top:20px;">
+                    <div style="background:var(--bg); border:1px solid var(--border); padding:25px; border-radius:24px; text-align:center;">
+                        <h2 id="orgPeriodTotal" style="color:var(--text); margin:0; font-size:36px;">₹0</h2>
+                        <span id="orgPeriodGigs" style="color:var(--dim); font-weight:600;">0 Shows</span>
+                        <div id="orgAvgStats" style="font-size:13px; margin-top:8px; color:var(--dim)">Avg: ₹0 / Show</div>
                     </div>
-                    <button class="btn-main" style="background:var(--success); margin-top:10px;" onclick="exportOrgFullPDF()">DOWNLOAD ORG SUMMARY</button>
-                    <div style="max-width:280px; margin:auto; margin-top:15px;"><canvas id="orgChart"></canvas></div>
+                    <button class="btn-main" style="background:var(--success); margin-top:15px;" onclick="exportOrgFullPDF()">DOWNLOAD ORG SUMMARY</button>
+                    <div style="max-width:280px; margin:auto; margin-top:25px;"><canvas id="orgChart"></canvas></div>
                     <div id="orgDetailsList" class="scroll-list"></div>
                 </div>
             </div>
@@ -238,38 +286,63 @@
         <div id="compare" class="page">
             <div class="glass-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h4 style="margin:0; color:var(--accent);">Period Comparison</h4>
-                    <select id="compAvgMode" onchange="runComparison()" style="width:100px; font-size:11px; margin:0;"><option value="show">Avg/Show</option><option value="month">Avg/Month</option></select>
+                    <h4 style="margin:0; color:var(--accent); font-weight:800;">Period Comparison</h4>
+                    <select id="compAvgMode" onchange="runComparison()" style="width:100px; font-size:11px; margin:0; font-weight:600;"><option value="show">Avg/Show</option><option value="month">Avg/Month</option></select>
                 </div>
-                <select id="compMemSelect" onchange="runComparison()"></select>
-                <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div>
-                        <small>Period 1</small>
-                        <select id="c1Type" onchange="toggleCompFilters(1)"><option value="month">Month</option><option value="year">Full Year</option></select>
+                <select id="compMemSelect" onchange="runComparison()" style="margin-top:10px;"></select>
+                <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                    <div style="background:var(--bg); padding:12px; border-radius:18px; border:1px solid var(--border);">
+                        <small style="color:var(--accent); font-weight:bold;">Period 1</small>
+                        <select id="c1Type" onchange="toggleCompFilters(1)" style="margin-bottom:5px;"><option value="month">Month</option><option value="year">Full Year</option></select>
                         <select id="c1m" onchange="runComparison()"></select><select id="c1y" onchange="runComparison()"></select>
                     </div>
-                    <div>
-                        <small>Period 2</small>
-                        <select id="c2Type" onchange="toggleCompFilters(2)"><option value="month">Month</option><option value="year">Full Year</option></select>
+                    <div style="background:var(--bg); padding:12px; border-radius:18px; border:1px solid var(--border);">
+                        <small style="color:var(--info); font-weight:bold;">Period 2</small>
+                        <select id="c2Type" onchange="toggleCompFilters(2)" style="margin-bottom:5px;"><option value="month">Month</option><option value="year">Full Year</option></select>
                         <select id="c2m" onchange="runComparison()"></select><select id="c2y" onchange="runComparison()"></select>
                     </div>
                 </div>
-                <button class="btn-main" style="background:var(--info); margin-top:15px;" onclick="exportComparePDF()">DOWNLOAD COMPARISON PDF</button>
-                <div id="compResult" style="margin-top:15px;"></div>
+                <button class="btn-main" style="background:var(--grad-2); margin-top:20px; color:white; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);" onclick="exportComparePDF()">DOWNLOAD COMPARISON PDF</button>
+                <div id="compResult" style="margin-top:20px;"></div>
             </div>
         </div>
 
         <div id="tools" class="page">
-            <div class="glass-card" style="text-align:center;"><img id="logoPreview" src=""><button class="btn-main" style="background:var(--info); font-size:12px;" onclick="document.getElementById('logoInput').click()">UPLOAD LOGO</button><input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="handleLogo(event)"></div>
-            <div class="glass-card"><h4>Directory Management</h4><div style="display:flex; gap:5px;"><input type="text" id="dirInput" placeholder="Name"><select id="dirType" style="width:100px;"><option value="m">Member</option><option value="o">Org</option></select><button class="btn-main" style="width:auto; padding:0 15px;" onclick="addDirectory()">ADD</button></div><div id="dirChips" class="chip-container" style="margin-top:10px;"></div></div>
-            <div class="glass-card"><h4>Security PIN</h4><input type="password" id="newPinInput" maxlength="4" placeholder="New PIN"><button class="btn-main" onclick="confirmPinChange()">CHANGE PIN</button></div>
+            <div class="glass-card" style="text-align:center;">
+                <img id="logoPreview" src="">
+                <button class="btn-main" style="background:var(--info); font-size:12px; width:auto; padding: 12px 25px;" onclick="document.getElementById('logoInput').click()">UPLOAD LOGO</button>
+                <input type="file" id="logoInput" accept="image/*" style="display:none;" onchange="handleLogo(event)">
+            </div>
+            
             <div class="glass-card">
-                <button class="btn-main" onclick="toggleTheme()">🌓 SWITCH THEME</button>
-                <button class="btn-main" style="background:var(--success); margin-top:10px;" onclick="secureAction('export')">💾 EXPORT BACKUP</button>
-                <button class="btn-main" style="background:var(--info);" onclick="secureAction('import')">📥 IMPORT BACKUP</button>
-                <button class="btn-main" style="background:var(--danger); margin-top:15px;" onclick="secureAction('reset')">⚠️ RESET DATA</button>
+                <h4 style="margin-top:0;">Directory Management</h4>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="dirInput" placeholder="Name">
+                    <select id="dirType" style="width:110px;"><option value="m">Member</option><option value="o">Org</option></select>
+                    <button class="btn-main" style="width:auto; padding:0 15px; margin-top:8px;" onclick="addDirectory()">ADD</button>
+                </div>
+                <div id="dirChips" class="chip-container"></div>
+            </div>
+
+            <div class="glass-card">
+                <h4 style="margin-top:0;">Security</h4>
+                <div style="display:flex; gap:8px;">
+                    <input type="password" id="newPinInput" maxlength="4" placeholder="New PIN">
+                    <button class="btn-main" style="margin-top:8px;" onclick="confirmPinChange()">CHANGE</button>
+                </div>
+            </div>
+            
+            <div class="glass-card">
+                <button class="btn-main" onclick="toggleTheme()" style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%);">🌓 SWITCH THEME</button>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:15px;">
+                    <button class="btn-main" style="background:var(--success); margin-top:0;" onclick="secureAction('export')">💾 BACKUP</button>
+                    <button class="btn-main" style="background:var(--info); margin-top:0;" onclick="secureAction('import')">📥 RESTORE</button>
+                </div>
+                <button class="btn-main" style="background:var(--danger); margin-top:15px;" onclick="secureAction('reset')">⚠️ RESET ALL DATA</button>
                 <input type="file" id="inFile" style="display:none;" onchange="handleImport(event)">
             </div>
+            
+            <div style="text-align:center; opacity:0.5; font-size:11px; margin-top:20px; font-weight:600;">Dotx Band Manager v2.7</div>
         </div>
     </div>
 
@@ -305,8 +378,6 @@
         function initApp() { 
             document.body.setAttribute('data-theme', db.theme); 
             refreshStaticData(); setupDefaultDates();
-            
-            // Restore UI State (Dropdowns)
             if (db.state) {
                 Object.keys(db.state).forEach(id => {
                     const el = document.getElementById(id);
@@ -317,8 +388,6 @@
             } else {
                 document.getElementById('dashMemSelect').value = "Band Payment";
             }
-
-            // Add Listeners for Auto-Save Dropdowns
             document.querySelectorAll('select').forEach(el => {
                 el.addEventListener('change', () => {
                     if (!db.state) db.state = {};
@@ -326,7 +395,6 @@
                     saveDB();
                 });
             });
-
             updateDash(); 
         }
 
@@ -350,7 +418,6 @@
                 const avgGigs = monthCount > 0 ? (gigs / monthCount).toFixed(1) : '0';
                 return `Avg: ₹${avgInc} | ${avgGigs} Gigs / Mo`;
             } else {
-                // Per Show
                 const avgInc = gigs > 0 ? Math.round(amt / gigs).toLocaleString() : '0';
                 return `Avg: ₹${avgInc} / Show`;
             }
@@ -362,10 +429,7 @@
             const mFilters = ['dashStartMonth','dashEndMonth','anaStartMonth','anaEndMonth','histMonth','c1m','c2m'];
             const yFilters = ['dashStartYear','dashEndYear','anaStartYear','anaEndYear','histYear','c1y','c2y'];
             mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
-            
-            // Setup special chart year selectors
             populateChartYearSelectors(cy);
-
             ['dashStartMonth', 'anaStartMonth'].forEach(id => document.getElementById(id).value = 8);
             ['dashEndMonth', 'anaEndMonth'].forEach(id => document.getElementById(id).value = 7);
             ['dashStartYear', 'anaStartYear', 'histYear', 'c2y'].forEach(id => document.getElementById(id).value = cy);
@@ -379,12 +443,9 @@
             const opts = [];
             for(let i = cy; i >= 2020; i--) opts.push(`<option value="${i}">${i}</option>`);
             const optsWithNone = ['<option value="none">None</option>', ...opts];
-            
             document.getElementById('growthY1').innerHTML = opts.join('');
             document.getElementById('growthY2').innerHTML = optsWithNone.join('');
             document.getElementById('growthY3').innerHTML = optsWithNone.join('');
-            
-            // Set defaults
             document.getElementById('growthY1').value = cy;
             document.getElementById('growthY2').value = "none";
             document.getElementById('growthY3').value = "none";
@@ -419,24 +480,29 @@
             setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 200);
         }
 
-        function exportReport(title, entity, data, sl, el) {
+        function exportReport(title, entity, data, sl, el, mCount) {
             const doc = new jsPDF(); 
             if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text(title + " Report", 35, 18);
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(title + " Report", 35, 18);
             
             const total = data.reduce((a,b)=>a+b.amt, 0);
-            const avg = data.length > 0 ? Math.round(total / data.length) : 0;
+            
+            // New AVG Calculations
+            const avgShow = data.length > 0 ? Math.round(total / data.length) : 0;
+            const avgIncMonth = mCount > 0 ? Math.round(total / mCount) : 0;
+            const avgGigsMonth = mCount > 0 ? (data.length / mCount).toFixed(1) : 0;
             
             doc.setFontSize(10); doc.setTextColor(0);
             doc.text(`Name: ${entity}`, 14, 30);
             doc.text(`Period: ${sl} to ${el}`, 14, 35);
             doc.text(`Total Shows: ${data.length} | Total Earnings: INR ${total.toLocaleString()}`, 14, 40);
-            doc.text(`Average Income per Show: INR ${avg.toLocaleString()}`, 14, 45);
+            doc.text(`Avg Income/Show: INR ${avgShow.toLocaleString()}`, 14, 45);
+            doc.text(`Avg Income/Month: INR ${avgIncMonth.toLocaleString()} | Avg Gigs/Month: ${avgGigsMonth}`, 14, 50);
             
             doc.autoTable({ 
                 head: [['Date', 'Venue', 'Organizer', 'Amount ₹', 'Note']], 
                 body: data.map(i => [formatD(i.date), i.venue, i.org, i.amt.toLocaleString(), i.note || '-']), 
-                startY: 50 
+                startY: 55 
             });
             addFooter(doc); saveAsPDF(doc, `${entity}_Report.pdf`);
         }
@@ -446,7 +512,7 @@
             const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
             const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
             const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Organizer Summary Report", 35, 18);
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Organizer Summary Report", 35, 18);
             doc.setFontSize(10); doc.setTextColor(0);
             doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
             const orgMap = {}; let tI = 0, tS = 0, tB = 0;
@@ -479,36 +545,31 @@
             const doc = new jsPDF(); 
             if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){} 
             
-            // Header
-            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text(s.venue, 105, 20, {align: 'center'}); 
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(s.venue, 105, 20, {align: 'center'}); 
             doc.setFontSize(11); doc.setTextColor(0);
             doc.text(`${s.org} | ${formatD(s.date)}`, 105, 27, {align: 'center'});
 
-            // Total Deal Box (Left)
             doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-            doc.rect(20, 35, 80, 20, 'FD'); // Box
+            doc.rect(20, 35, 80, 20, 'FD'); 
             doc.setFontSize(10); doc.setTextColor(100);
             doc.text("Total Deal", 60, 42, {align: 'center'});
-            doc.setFontSize(14); doc.setTextColor(16, 185, 129); // Green
+            doc.setFontSize(14); doc.setTextColor(16, 185, 129); 
             doc.text(`INR ${s.deal.toLocaleString()}`, 60, 50, {align: 'center'});
 
-            // Band Payment Box (Right)
             const bpObj = s.payouts.find(p => p.name === "Band Payment");
             const bpAmt = bpObj ? bpObj.amt : 0;
             doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-            doc.rect(110, 35, 80, 20, 'FD'); // Box
+            doc.rect(110, 35, 80, 20, 'FD'); 
             doc.setFontSize(10); doc.setTextColor(100);
             doc.text("Band Payment", 150, 42, {align: 'center'});
-            doc.setFontSize(14); doc.setTextColor(139, 92, 246); // Purple
+            doc.setFontSize(14); doc.setTextColor(139, 92, 246); 
             doc.text(`INR ${bpAmt.toLocaleString()}`, 150, 50, {align: 'center'});
 
-            // Note
             if(s.note) {
                 doc.setFontSize(10); doc.setTextColor(80);
                 doc.text(`Note: ${s.note}`, 14, 65);
             }
 
-            // Member Table
             const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
             const memTotal = memberPayouts.reduce((a, b) => a + b.amt, 0);
 
@@ -520,9 +581,8 @@
                 theme: 'grid'
             }); 
             
-            // Total Distributed Footer
             const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFillColor(139, 92, 246); // Purple BG
+            doc.setFillColor(139, 92, 246); 
             doc.rect(14, finalY, 182, 10, 'F');
             doc.setTextColor(255); doc.setFontSize(11);
             doc.text("Total Distributed", 20, finalY + 7);
@@ -538,7 +598,7 @@
             const res2 = calculatePeriodData(2, mem);
             const doc = new jsPDF();
             if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139,92,246); doc.text("Advanced Comparison Report", 35, 18);
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Advanced Comparison Report", 35, 18);
             doc.setFontSize(10); doc.setTextColor(0);
             doc.text(`Entity: ${mem}`, 14, 30);
             doc.text(`P1: ${res1.label} | P2: ${res2.label}`, 14, 35);
@@ -568,24 +628,15 @@
         function calculatePeriodData(id, mem) {
             const type = document.getElementById(`c${id}Type`).value; const m = parseInt(document.getElementById(`c${id}m`).value); const y = parseInt(document.getElementById(`c${id}y`).value);
             let amt = 0, gigs = 0, orgs = {}, list = [];
-            
-            // LOCAL TIME FIX FOR "PAST" CHECK
             const todayStr = new Date().toLocaleDateString('en-CA');
-            
             const sLbl = type === 'year' ? `Jan ${y}` : `${months[m]} ${y}`;
             const eLbl = type === 'year' ? `Dec ${y}` : `${months[m]} ${y}`;
             const label = type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}`;
-            
-            // Month Calculation for Compare
             let mCount = 1;
-            if (type === 'year') {
-                mCount = 12; // Simplified
-            }
+            if (type === 'year') { mCount = 12; }
 
             db.shows.forEach(s => { 
-                // FILTER: Only count passed dates (NOT TODAY)
                 if(s.date >= todayStr) return;
-
                 const sd = new Date(s.date);
                 const match = type === 'year' ? (sd.getFullYear() === y) : (sd.getFullYear() === y && sd.getMonth() === m);
                 if(match) { const p = s.payouts.find(px => px.name === mem); 
@@ -607,56 +658,29 @@
         function runComparison() {
             const mem = document.getElementById('compMemSelect').value; 
             const avgMode = document.getElementById('compAvgMode').value;
-            
             const res1 = calculatePeriodData(1, mem); 
             const res2 = calculatePeriodData(2, mem);
             compData = { p1: res1, p2: res2, mem: mem };
-
             const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
-            
             let t1G = 0, t1E = 0, t2G = 0, t2E = 0;
-
             let orgHtml = allOrgs.map(name => { 
                 const o1 = res1.orgs[name] || { gigs: 0, earnings: 0, list: [] }; 
                 const o2 = res2.orgs[name] || { gigs: 0, earnings: 0, list: [] };
                 t1G += o1.gigs; t1E += o1.earnings;
                 t2G += o2.gigs; t2E += o2.earnings;
-
                 const c1 = o1.list.length ? `onclick="openOrgDetail('p1', '${name}')" class="clickable-cell"` : '';
                 const c2 = o2.list.length ? `onclick="openOrgDetail('p2', '${name}')" class="clickable-cell"` : '';
-
                 return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%" ${c1}>${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%" ${c2}><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
             }).join('');
-            
-            orgHtml += `<div class="bk-row" style="border-top:2px solid var(--border); color:var(--text); font-weight:bold;">
-                <div style="width:40%">TOTAL</div>
-                <div style="width:30%">${t1G} (₹${t1E.toLocaleString()})</div>
-                <div style="width:30%">${t2G} (₹${t2E.toLocaleString()})</div>
-            </div>`;
-
-            // Calculate Avg based on mode
+            orgHtml += `<div class="bk-row" style="border-top:2px solid var(--border); color:var(--text); font-weight:bold;"><div style="width:40%">TOTAL</div><div style="width:30%">${t1G} (₹${t1E.toLocaleString()})</div><div style="width:30%">${t2G} (₹${t2E.toLocaleString()})</div></div>`;
             const avg1 = getAvgDisplay(res1.amt, res1.gigs, avgMode, res1.mCount);
             const avg2 = getAvgDisplay(res2.amt, res2.gigs, avgMode, res2.mCount);
-
             document.getElementById('compResult').innerHTML = `
             <div class="comp-grid">
-                <div class="comp-card" onclick="openCompDetail('p1')">
-                    <small>${res1.label}</small>
-                    <h3>₹${res1.amt.toLocaleString()}</h3>
-                    <p>${res1.gigs} Gigs</p>
-                    <small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg1}</small>
-                </div>
-                <div class="comp-card" onclick="openCompDetail('p2')">
-                    <small>${res2.label}</small>
-                    <h3>₹${res2.amt.toLocaleString()}</h3>
-                    <p>${res2.gigs} Gigs</p>
-                    <small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg2}</small>
-                </div>
+                <div class="comp-card" onclick="openCompDetail('p1')"><small>${res1.label}</small><h3>₹${res1.amt.toLocaleString()}</h3><p>${res1.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg1}</small></div>
+                <div class="comp-card" onclick="openCompDetail('p2')"><small>${res2.label}</small><h3>₹${res2.amt.toLocaleString()}</h3><p>${res2.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg2}</small></div>
             </div>
-            <div class="glass-card" style="margin-top:10px;">
-                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>
-                ${orgHtml || '<p>No data</p>'}
-            </div>`;
+            <div class="glass-card" style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>${orgHtml || '<p>No data</p>'}</div>`;
         }
 
         function openCompDetail(key) {
@@ -678,29 +702,17 @@
         function updateDash() {
             const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
             const avgMode = document.getElementById('dashAvgMode').value;
-
-            // ROBUST LOCAL DATE FIX:
             const todayStr = new Date().toLocaleDateString('en-CA'); 
             const now = new Date();
-
             let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
             const start = new Date(document.getElementById('dashStartYear').value, document.getElementById('dashStartMonth').value, 1);
             const end = new Date(document.getElementById('dashEndYear').value, document.getElementById('dashEndMonth').value, 31);
-            
             const gy1 = parseInt(document.getElementById('growthY1').value);
             const gy2 = document.getElementById('growthY2').value === 'none' ? null : parseInt(document.getElementById('growthY2').value);
             const gy3 = document.getElementById('growthY3').value === 'none' ? null : parseInt(document.getElementById('growthY3').value);
-            
-            let gData1 = new Array(12).fill(0);
-            let gData2 = new Array(12).fill(0);
-            let gData3 = new Array(12).fill(0);
-
-            let gCount1 = new Array(12).fill(0);
-            let gCount2 = new Array(12).fill(0);
-            let gCount3 = new Array(12).fill(0);
-
-            let reminders = [];
-            let earliestDate = new Date(); // For lifetime month calculation
+            let gData1 = new Array(12).fill(0); let gData2 = new Array(12).fill(0); let gData3 = new Array(12).fill(0);
+            let gCount1 = new Array(12).fill(0); let gCount2 = new Array(12).fill(0); let gCount3 = new Array(12).fill(0);
+            let reminders = []; let earliestDate = new Date(); 
 
             db.shows.forEach(s => { 
                 const sd = new Date(s.date); 
@@ -713,7 +725,6 @@
                             if(sd.getMonth()===now.getMonth() && sd.getFullYear()===now.getFullYear()){mAmt+=p.amt; mG++;} 
                             if(sd.getFullYear()===now.getFullYear()){ yAmt+=p.amt; yG++; } 
                             if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
-                            
                             if(sd.getFullYear() === gy1) { gData1[sd.getMonth()] += p.amt; gCount1[sd.getMonth()]++; }
                             if(gy2 && sd.getFullYear() === gy2) { gData2[sd.getMonth()] += p.amt; gCount2[sd.getMonth()]++; }
                             if(gy3 && sd.getFullYear() === gy3) { gData3[sd.getMonth()] += p.amt; gCount3[sd.getMonth()]++; }
@@ -722,9 +733,8 @@
                 }
             });
 
-            // Month Calculations
             const lifetimeMonths = getMonthDiff(earliestDate, now);
-            const yearMonths = (now.getMonth() + 1); // Elapsed months in current year
+            const yearMonths = (now.getMonth() + 1); 
             const customMonths = getMonthDiff(start, end);
 
             const rDiv = document.getElementById('reminderArea');
@@ -737,85 +747,25 @@
 
             document.getElementById('dashLifetimeAmt').innerHTML=`₹${lAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(lAmt, lG, avgMode, lifetimeMonths)}</span>`; 
             document.getElementById('dashLifetimeGigs').innerText=`${lG} Shows`;
-            
             document.getElementById('dashMonthAmt').innerHTML=`₹${mAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(mAmt, mG, avgMode, 1)}</span>`; 
             document.getElementById('dashMonthGigs').innerText=`${mG} Gigs`;
-            
             document.getElementById('dashYearAmt').innerHTML=`₹${yAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(yAmt, yG, avgMode, yearMonths)}</span>`; 
             document.getElementById('dashYearGigs').innerText=`${yG} Gigs`;
-            
             document.getElementById('dashCustomAmt').innerHTML=`₹${cAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(cAmt, cG, avgMode, customMonths)}</span>`; 
             document.getElementById('dashCustomGigs').innerText=`${cG} Shows`;
-            
             renderDashGrowthChart(gData1, gData2, gData3, gy1, gy2, gy3, gCount1, gCount2, gCount3);
         }
 
         function renderDashGrowthChart(d1, d2, d3, y1, y2, y3, c1, c2, c3) {
             if(dashLineChart) dashLineChart.destroy();
             const ctx = document.getElementById('dashGrowthChart').getContext('2d');
-            
-            let datasets = [{
-                label: y1,
-                data: d1,
-                gigCounts: c1,
-                borderColor: '#8b5cf6',
-                backgroundColor: 'rgba(139,92,246,0.1)',
-                tension: 0.3, borderWidth: 2, pointRadius: 3
-            }];
-
-            if(y2 !== null) {
-                datasets.push({
-                    label: y2,
-                    data: d2,
-                    gigCounts: c2,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59,130,246,0.0)',
-                    tension: 0.3, borderWidth: 2, pointRadius: 3
-                });
-            }
-
-            if(y3 !== null) {
-                datasets.push({
-                    label: y3,
-                    data: d3,
-                    gigCounts: c3,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245,158,11,0.0)',
-                    tension: 0.3, borderWidth: 2, pointRadius: 3
-                });
-            }
-
+            let datasets = [{ label: y1, data: d1, gigCounts: c1, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.15)', tension: 0.3, borderWidth: 3, pointRadius: 3 }];
+            if(y2 !== null) { datasets.push({ label: y2, data: d2, gigCounts: c2, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
+            if(y3 !== null) { datasets.push({ label: y3, data: d3, gigCounts: c3, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
             dashLineChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: months.map(m => m.substring(0,3)),
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { 
-                        legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) { label += ': '; }
-                                    if (context.parsed.y !== null) {
-                                        label += '₹' + context.parsed.y.toLocaleString();
-                                    }
-                                    let count = context.dataset.gigCounts[context.dataIndex];
-                                    return label + ' (' + count + ' Gigs)';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 } } },
-                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
-                    }
-                }
+                data: { labels: months.map(m => m.substring(0,3)), datasets: datasets },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: {family: 'Outfit'} } }, tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += '₹' + context.parsed.y.toLocaleString(); } let count = context.dataset.gigCounts[context.dataIndex]; return label + ' (' + count + ' Gigs)'; } } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10, family: 'Outfit' } } }, x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Outfit' } } } } }
             });
         }
 
@@ -828,14 +778,7 @@
             document.getElementById('compMemSelect').value = compMem || "Band Payment";
             document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
             document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
-            
-            // LOGO UPDATE
-            if(db.logo) { 
-                const lp = document.getElementById('logoPreview'); 
-                const hl = document.getElementById('headerLogo');
-                lp.src = db.logo; lp.style.display = 'block'; 
-                hl.src = db.logo; hl.style.display = 'block';
-            }
+            if(db.logo) { const lp = document.getElementById('logoPreview'); const hl = document.getElementById('headerLogo'); lp.src = db.logo; lp.style.display = 'block'; hl.src = db.logo; hl.style.display = 'block'; }
         }
 
         function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
@@ -844,10 +787,7 @@
             document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); 
             const yrs=[2023,2024,2025,2026,2027,2028]; 
             let yOpts = yrs.map(v=>`<option value="${v}">${v}</option>`).join('');
-            // Add Lifetime option if it's the history year dropdown
-            if(y === 'histYear') {
-                yOpts = '<option value="lifetime">Lifetime</option>' + yOpts;
-            }
+            if(y === 'histYear') { yOpts = '<option value="lifetime">Lifetime</option>' + yOpts; }
             document.getElementById(y).innerHTML = yOpts; 
         }
 
@@ -855,158 +795,46 @@
         function delDir(i) { db.dir.splice(i,1); saveDB(); }
 
         function addRow(p='') { 
-            const d=document.createElement('div'); 
-            d.className='payout-row'; 
-            d.style.marginBottom = "10px";
-            d.innerHTML=`
-                <input class="pn" list="memDList" placeholder="Name" value="${p}">
-                <div style="display:flex; gap:5px;">
-                    <input type="number" class="pa" placeholder="₹">
-                    <select class="pm">
-                        <option value="Cash">Cash</option>
-                        <option value="Online">Online</option>
-                    </select>
-                </div>
-                <input type="text" class="pnote" placeholder="Payment Note/Txn ID" style="margin-top:5px;">
-                <button onclick="this.parentElement.remove()" style="color:red; background:none; border:none; float:right;">×</button>
-                <div style="clear:both"></div>
-            `; 
+            const d=document.createElement('div'); d.className='payout-row'; d.style.marginBottom = "10px";
+            d.innerHTML=`<input class="pn" list="memDList" placeholder="Name" value="${p}"><div style="display:flex; gap:5px;"><input type="number" class="pa" placeholder="₹"><select class="pm"><option value="Cash">Cash</option><option value="Online">Online</option></select></div><input type="text" class="pnote" placeholder="Payment Note/Txn ID" style="margin-top:5px;"><button onclick="this.parentElement.remove()" style="color:var(--danger); background:none; border:none; float:right; font-size:18px;">×</button><div style="clear:both"></div>`; 
             document.getElementById('payoutArea').appendChild(d); 
         }
 
         function saveShow() { 
-            const v=document.getElementById('vName').value; 
-            if(!v) return notify("Venue required","danger"); 
-            const pA=[]; 
-            document.querySelectorAll('.payout-row').forEach(r=>{
-                const n=r.querySelector('.pn').value; 
-                if(n) pA.push({
-                    name:n, 
-                    amt:parseFloat(r.querySelector('.pa').value||0), 
-                    mode:r.querySelector('.pm').value, 
-                    note:r.querySelector('.pnote').value||''
-                });
-            }); 
+            const v=document.getElementById('vName').value; if(!v) return notify("Venue required","danger"); 
+            const pA=[]; document.querySelectorAll('.payout-row').forEach(r=>{ const n=r.querySelector('.pn').value; if(n) pA.push({ name:n, amt:parseFloat(r.querySelector('.pa').value||0), mode:r.querySelector('.pm').value, note:r.querySelector('.pnote').value||'' }); }); 
             const id=document.getElementById('editId').value; 
-            const g={
-                id:id?parseInt(id):Date.now(), 
-                venue:v, 
-                org:document.getElementById('orgName').value, 
-                date:document.getElementById('gDate').value, 
-                deal:parseFloat(document.getElementById('gDeal').value||0),
-                note: document.getElementById('gNote').value,
-                payouts: pA
-            }; 
+            const g={ id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), note: document.getElementById('gNote').value, payouts: pA }; 
             if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
             saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
         }
 
         function renderHistory() { 
-            const fM = document.getElementById('histMonth').value; 
-            const fY = document.getElementById('histYear').value; 
-            const q = document.getElementById('histSearch').value.toLowerCase().trim();
-
-            const list = db.shows.filter(s => { 
-                const d = new Date(s.date); 
-                
-                // 1. Date Filtering
-                let dateMatch = false;
-                if(fY === 'lifetime') {
-                    dateMatch = true; // Show all years if lifetime is selected
-                } else {
-                    dateMatch = d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM);
-                }
-                
-                if(!dateMatch) return false;
-
-                // 2. Search Filtering (Venue, Org, Date, Amount)
-                if(!q) return true; // No search query, show all that matched date
-                
-                const searchStr = `${s.venue} ${s.org} ${formatD(s.date)} ${s.deal}`.toLowerCase();
-                return searchStr.includes(q);
-
-            }).sort((a,b)=>new Date(b.date)-new Date(a.date)); 
-            
-            document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br>₹${s.deal}</div>`).join('') || '<p style="text-align:center">No Data</p>'; 
+            const fM = document.getElementById('histMonth').value; const fY = document.getElementById('histYear').value; const q = document.getElementById('histSearch').value.toLowerCase().trim();
+            const list = db.shows.filter(s => { const d = new Date(s.date); let dateMatch = false; if(fY === 'lifetime') { dateMatch = true; } else { dateMatch = d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM); } if(!dateMatch) return false; if(!q) return true; const searchStr = `${s.venue} ${s.org} ${formatD(s.date)} ${s.deal}`.toLowerCase(); return searchStr.includes(q); }).sort((a,b)=>new Date(b.date)-new Date(a.date)); 
+            document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br><span style="color:var(--success); font-weight:bold;">₹${s.deal}</span></div>`).join('') || '<p style="text-align:center; opacity:0.6;">No Data</p>'; 
         }
         
         function viewGigDetails(id) { 
             const s=db.shows.find(x=>x.id===id); 
-            
-            // Extract Band Payment
-            const bpObj = s.payouts.find(p => p.name === "Band Payment");
-            const bpAmt = bpObj ? bpObj.amt : 0;
-            
-            // Calculate Member Total (Everything excluding Band Payment)
-            const memPayouts = s.payouts.filter(p => p.name !== "Band Payment");
-            const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
-
-            document.getElementById('modalBody').innerHTML = `
-                <span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span>
-                <h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3>
-                <h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4>
-                <p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p>
-                
-                <div style="background:var(--bg); padding:12px; border-radius:10px; margin-bottom:10px; border:1px solid var(--border); text-align:center;">
-                    <span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span>
-                    <span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span>
-                </div>
-
-                <div style="background:var(--bg); padding:12px; border-radius:10px; margin-bottom:15px; border:1px solid var(--border); text-align:center;">
-                    <span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span>
-                    <span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span>
-                </div>
-                
-                ${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}
-
-                <div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">
-                    ${memPayouts.map(p=>`
-                        <div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span>
-                                <strong>₹${p.amt}</strong>
-                            </div>
-                            ${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-                
-                <div style="background:var(--grad); color:white; padding:10px; border-radius:10px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:12px;">Total Distributed</span>
-                    <strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong>
-                </div>
-
-                <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
-                    <button class="btn-main" style="flex:1" onclick="exportGigPDF(${id})">PDF</button>
-                    <button class="btn-main" style="background:var(--info); flex:1" onclick="editGig(${id})">EDIT</button>
-                </div>
-                <button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
+            const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
+            const memPayouts = s.payouts.filter(p => p.name !== "Band Payment"); const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
+            document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}<div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div><div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div><div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div><button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
             document.getElementById('detailModal').style.display='flex'; 
         }
 
-        function deleteGig(id) {
-            if(confirm("Are you sure you want to delete this Gig entry? This cannot be undone.")) {
-                db.shows = db.shows.filter(s => s.id !== id);
-                saveDB();
-                document.getElementById('detailModal').style.display='none';
-                renderHistory();
-                updateDash();
-                notify("Gig Deleted", "danger");
-            }
-        }
+        function deleteGig(id) { if(confirm("Delete this Gig?")){ db.shows = db.shows.filter(s => s.id !== id); saveDB(); document.getElementById('detailModal').style.display='none'; renderHistory(); updateDash(); notify("Gig Deleted", "danger"); } }
 
         function exportMemberPDF() {
             const name = document.getElementById('memSelect').value; if(!name) return;
             const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
             const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
             const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-            const data = []; db.shows.forEach(s => { 
-                const d = new Date(s.date);
-                if(d >= start && d <= end){ 
-                    s.payouts.forEach(p=>{if(p.name===name) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); 
-                }
-            });
-            exportReport("Performance", name, data, `${months[sm]} ${sy}`, `${months[em]} ${ey}`);
+            const data = []; db.shows.forEach(s => { const d = new Date(s.date); if(d >= start && d <= end){ s.payouts.forEach(p=>{if(p.name===name) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
+            
+            // Calculate Stats for PDF
+            const mCount = getMonthDiff(start, end);
+            exportReport("Performance", name, data, `${months[sm]} ${sy}`, `${months[em]} ${ey}`, mCount);
         }
         function viewBreakdown(type) {
             const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
@@ -1025,14 +853,13 @@
         function renderBreakdownModal(title, entity, data, sl, el) {
             let html = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3>${title}</h3><p>${entity}</p><div style="margin-top:15px; border-top:1px solid var(--border)">`;
             let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; 
-                // Add click event to open full details if ID is present
-                const clk = i.id ? `onclick="viewGigDetails(${i.id})"` : '';
-                const cursorStyle = i.id ? 'cursor:pointer;' : '';
+                const clk = i.id ? `onclick="viewGigDetails(${i.id})"` : ''; const cursorStyle = i.id ? 'cursor:pointer;' : '';
                 html += `<div class="bk-row" ${clk} style="${cursorStyle}"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; 
             });
             html += `<div style="display:flex; justify-content:space-between; padding:15px 0; color:var(--accent);"><strong>TOTAL</strong><strong>₹${t.toLocaleString()}</strong></div></div><button class="btn-main" id="dlBreakdownPdf">DOWNLOAD PDF</button>`;
             document.getElementById('modalBody').innerHTML = html; document.getElementById('detailModal').style.display = 'flex';
-            document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el);
+            // Determine dates for PDF if not provided (fallback)
+            document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el, 1);
         }
         function toggleAnalysisMode() { const m = document.getElementById('analysisType').value; document.getElementById('memberSection').style.display=m==='member'?'block':'none'; document.getElementById('orgSection').style.display=m==='organizer'?'block':'none'; if(m==='member'){ const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; document.getElementById('memSelect').innerHTML = '<option value="">Select Member</option>' + ms.map(n => `<option value="${n}">${n}</option>`).join(''); } triggerAnalysis(); }
         function triggerAnalysis() { const mode = document.getElementById('analysisType').value; if(mode === 'member') runMemberAnalysis(); else runOrgAnalysis(); }
@@ -1040,23 +867,11 @@
         function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; 
             const avgMode = document.getElementById('anaAvgMode').value;
             const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; 
-            const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; 
-            const now = new Date();
-            const todayStr = new Date().toLocaleDateString('en-CA');
-            db.shows.forEach(x=>{ const d=new Date(x.date); 
-                // Only count past gigs (Strictly less than today)
-                if(d >= s && d <= e && x.date < todayStr){ 
-                    x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}});
-                }
-            }); 
+            const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
+            db.shows.forEach(x=>{ const d=new Date(x.date); if(d >= s && d <= e && x.date < todayStr){ x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}}); } }); 
             const mCount = getMonthDiff(s, e);
-            document.getElementById('memStats').style.display='block'; 
-            document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; 
-            document.getElementById('totalSelectedShow').innerText=`${c} Shows`; 
-            document.getElementById('memAvgStats').innerText = getAvgDisplay(t, c, avgMode, mCount); 
-            
-            if(mChart) mChart.destroy(); 
-            mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6' }]} }); 
+            document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; document.getElementById('memAvgStats').innerText = getAvgDisplay(t, c, avgMode, mCount); 
+            if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6', borderRadius: 5 }]} }); 
         }
         
         function runOrgAnalysis() {
@@ -1064,99 +879,20 @@
             const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value;
             const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value;
             const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-            const om={}; let tr=0, tg=0;
-            const now = new Date();
-            const todayStr = new Date().toLocaleDateString('en-CA');
-            db.shows.forEach(x=>{ const d=new Date(x.date); 
-                // Only count past gigs (Strictly less than today)
-                if(d>=start && d <= end && x.date < todayStr){ 
-                    if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; 
-                    let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0;
-                    let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || '';
-                    om[x.org].r+=x.deal; om[x.org].c++; 
-                    om[x.org].list.push({id: x.id, date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn});
-                    tr+=x.deal; tg++; 
-                }
-            });
+            const om={}; let tr=0, tg=0; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
+            db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=start && d <= end && x.date < todayStr){ if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0; let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || ''; om[x.org].r+=x.deal; om[x.org].c++; om[x.org].list.push({id: x.id, date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn}); tr+=x.deal; tg++; } });
             const mCount = getMonthDiff(start, end);
-            document.getElementById('orgSection').style.display='block'; 
-            document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; 
-            document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`;
-            document.getElementById('orgAvgStats').innerText = getAvgDisplay(tr, tg, avgMode, mCount);
-            
-            // DYNAMIC COLORS using Golden Angle approximation
+            document.getElementById('orgSection').style.display='block'; document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`; document.getElementById('orgAvgStats').innerText = getAvgDisplay(tr, tg, avgMode, mCount);
             const sortedOrgs = Object.keys(om).sort((a,b)=>om[b].r - om[a].r); 
-            const dynamicColors = sortedOrgs.map((_, i) => {
-                const hue = (i * 137.508) % 360; // Golden angle to separate colors
-                return `hsl(${hue}, 70%, 50%)`;
-            });
-
-            if(oChart) oChart.destroy();
-            oChart = new Chart(document.getElementById('orgChart'), { 
-                type: 'doughnut', 
-                data: { 
-                    labels: sortedOrgs, 
-                    datasets: [{ 
-                        data: sortedOrgs.map(k => om[k].r), 
-                        backgroundColor: dynamicColors,
-                        borderWidth: 0
-                    }]
-                }, 
-                options: { 
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { display: false }, 
-                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } 
-                    },
-                    onClick: (evt, elements) => { 
-                        if (elements.length > 0) { 
-                            const i = elements[0].index; 
-                            const label = sortedOrgs[i]; 
-                            renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); 
-                        } 
-                    } 
-                } 
-            });
-
-            document.getElementById('orgDetailsList').innerHTML = sortedOrgs.map((l, i) => { 
-                const sL = months[sm]+" "+sy; 
-                const eL = months[em]+" "+ey; 
-                const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; 
-                const color = dynamicColors[i];
-                return `
-                <div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'>
-                    <div style="display:flex; align-items:center;">
-                        <span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%; margin-right:8px; flex-shrink:0;"></span>
-                        <div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div>
-                    </div>
-                    <strong>₹${om[l].r.toLocaleString()}</strong>
-                </div>`;
-            }).join('');
+            const dynamicColors = sortedOrgs.map((_, i) => { const hue = (i * 137.508) % 360; return `hsl(${hue}, 70%, 50%)`; });
+            if(oChart) oChart.destroy(); oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: sortedOrgs, datasets: [{ data: sortedOrgs.map(k => om[k].r), backgroundColor: dynamicColors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } }, onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = sortedOrgs[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } } } });
+            document.getElementById('orgDetailsList').innerHTML = sortedOrgs.map((l, i) => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; const color = dynamicColors[i]; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%; margin-right:8px; flex-shrink:0;"></span><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`; }).join('');
         }
         function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('gNote').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
         function editGig(id) { 
-            const s=db.shows.find(x=>x.id==id); 
-            document.getElementById('detailModal').style.display='none'; 
-            document.getElementById('editId').value=s.id; 
-            document.getElementById('vName').value=s.venue; 
-            document.getElementById('orgName').value=s.org; 
-            document.getElementById('gDate').value=s.date; 
-            document.getElementById('gDeal').value=s.deal; 
-            document.getElementById('gNote').value=s.note || ''; 
-            document.getElementById('payoutArea').innerHTML=''; 
-            s.payouts.forEach(p=>{
-                addRow(p.name); 
-                const r=document.querySelector('#payoutArea .payout-row:last-child'); 
-                r.querySelector('.pa').value=p.amt; 
-                r.querySelector('.pm').value=p.mode; 
-                r.querySelector('.pnote').value=p.note || '';
-            }); 
-            document.getElementById('formTitle').innerText="Edit Gig"; 
-            document.getElementById('cancelBtn').style.display='block'; 
-            showPage('add'); 
+            const s=db.shows.find(x=>x.id==id); document.getElementById('detailModal').style.display='none'; document.getElementById('editId').value=s.id; document.getElementById('vName').value=s.venue; document.getElementById('orgName').value=s.org; document.getElementById('gDate').value=s.date; document.getElementById('gDeal').value=s.deal; document.getElementById('gNote').value=s.note || ''; document.getElementById('payoutArea').innerHTML=''; s.payouts.forEach(p=>{ addRow(p.name); const r=document.querySelector('#payoutArea .payout-row:last-child'); r.querySelector('.pa').value=p.amt; r.querySelector('.pm').value=p.mode; r.querySelector('.pnote').value=p.note || ''; }); document.getElementById('formTitle').innerText="Edit Gig"; document.getElementById('cancelBtn').style.display='block'; showPage('add'); 
         }
-        async function runExport() { const ds=JSON.stringify(db, null, 2); if(window.showSaveFilePicker){ try{const h=await window.showSaveFilePicker({suggestedName:`Band_Backup.json`, types:[{description:'JSON', accept:{'application/json':['.json']}}]}); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success");}catch(e){}} else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=`Dotx_Backup.json`; a.click(); } }
+        async function runExport() { const ds=JSON.stringify(db, null, 2); const dateStr = new Date().toISOString().split('T')[0]; const fName = `Band_Backup_${dateStr}.json`; if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({ suggestedName: fName, types:[{description:'JSON', accept:{'application/json':['.json']}}] }); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success"); }catch(e){} } else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=fName; a.click(); } }
         function handleImport(e) { const r = new FileReader(); r.onload = (x) => { try { db = JSON.parse(x.target.result); saveDB(); notify("Sync Success", "success"); setTimeout(() => location.reload(), 1000); } catch(err) { notify("Error", "danger"); } }; r.readAsText(e.target.files[0]); }
         function runReset() { if(confirm("Erase all data?")){ indexedDB.deleteDatabase("DotxBandDB"); notify("Wiped", "danger"); setTimeout(()=>location.reload(), 1000); } }
         function handleLogo(e) { const r = new FileReader(); r.onload = (ev) => { db.logo = ev.target.result; saveDB(); notify("Logo Saved", "success"); }; r.readAsDataURL(e.target.files[0]); }
