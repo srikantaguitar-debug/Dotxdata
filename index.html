@@ -122,6 +122,21 @@
 
     <div id="toast-container"></div>
 
+<div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; display:none;">
+    <div class="glass-card" style="width:85%; max-width:350px; text-align:center; padding:30px;">
+        <h2 style="color:var(--accent); font-size:28px; font-weight:800; margin-bottom:5px;">Dotx Cloud</h2>
+        <p style="color:var(--dim); font-size:12px; margin-bottom:20px;">Secure Band Manager Sync</p>
+        
+        <input type="email" id="fEmail" placeholder="Email Address">
+        <input type="password" id="fPass" placeholder="Password">
+        
+        <button class="btn-main" onclick="handleLogin()" id="btnLoginBtn">LOGIN / SYNC</button>
+        <button class="btn-main" onclick="handleSignup()" style="background:var(--bg); color:var(--text); border:1px solid var(--border); margin-top:10px;">CREATE NEW ACCOUNT</button>
+        
+        <p id="authMsg" style="color:var(--danger); font-size:12px; margin-top:10px;"></p>
+        <div id="authLoader" style="display:none; color:var(--accent); font-size:12px; margin-top:10px;">Connecting to server...</div>
+    </div>
+</div>
     <div id="lockScreen">
         <h2 style="margin:0 0 10px 0; color:var(--danger); font-size: 42px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);">DOTX</h2>
         <p style="color:var(--dim); margin:0 0 30px 0;">Enter security PIN</p>
@@ -338,7 +353,11 @@
                     <button class="btn-main" style="background:var(--success); margin-top:0;" onclick="secureAction('export')">💾 BACKUP</button>
                     <button class="btn-main" style="background:var(--info); margin-top:0;" onclick="secureAction('import')">📥 RESTORE</button>
                 </div>
-                <button class="btn-main" style="background:var(--danger); margin-top:15px;" onclick="secureAction('reset')">⚠️ RESET ALL DATA</button>
+                <p id="loggedInEmail" style="text-align:center; color:var(--dim); font-size:13px; font-weight:700; margin: 15px 0 5px 0;"></p>
+
+<button class="btn-main" onclick="handleLogout()" style="background:var(--grad-3); margin-top:0; box-shadow: 0 8px 20px rgba(249, 115, 22, 0.35);">LOGOUT / SWITCH USER</button>
+
+<button class="btn-main" style="background:var(--danger); margin-top:15px;" onclick="secureAction('reset')">⚠️ RESET ALL DATA</button>
                 <input type="file" id="inFile" style="display:none;" onchange="handleImport(event)">
             </div>
             
@@ -348,88 +367,243 @@
 
     <datalist id="orgDList"></datalist><datalist id="memDList"></datalist>
     <div id="detailModal" class="modal" onclick="closeDetailIfOutside(event)"><div class="modal-content" id="modalBody"></div></div>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW Registered'))
-                    .catch(err => console.log('SW Failed', err));
-            });
-        }
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Failed', err));
+        });
+    }
 
-        const { jsPDF } = window.jspdf;
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        let db = { shows: [], theme: 'light', logo: '', pin: '1234', dir: [], state: {} };
-        let inputPin = "", actionPin = "", currentAction = null, mChart = null, oChart = null, dashLineChart = null;
-        let compData = {}; 
+    // --- 1. FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnUlbaLG34IMzcISoHotyuaM5fFKao--4",
+      authDomain: "dotx-band-management.firebaseapp.com",
+      projectId: "dotx-band-management",
+      storageBucket: "dotx-band-management.firebasestorage.app",
+      messagingSenderId: "774226084851",
+      appId: "1:774226084851:web:7cf76979e245be35c0c886"
+    };
 
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const dbStore = firebase.firestore();
+
+    // Offline Persistence (অফলাইনে কাজ করার জন্য)
+    dbStore.enablePersistence({synchronizeTabs:true}).catch((err) => {
+        console.log("Persistence Error:", err.code);
+    });
+
+    // --- GLOBAL VARIABLES ---
+    const { jsPDF } = window.jspdf;
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    // ডিফল্ট ডেটাবেস স্ট্রাকচার
+    let db = { shows: [], theme: 'light', logo: '', pin: '1234', dir: [], state: {} };
+    
+    let inputPin = "", actionPin = "", currentAction = null, mChart = null, oChart = null, dashLineChart = null;
+    let compData = {}; 
+    let currentUser = null;
+    let unsubscribeSnapshot = null;
+
+    // --- 2. STARTUP LOGIC ---
+    function initApp() { 
+        // IndexedDB কানেকশন রাখা হলো ব্যাকআপ হিসেবে (লোকাল লোডিং ফাস্ট করার জন্য)
         const dbRequest = indexedDB.open("DotxBandDB", 1);
         dbRequest.onupgradeneeded = e => e.target.result.createObjectStore("settings");
         dbRequest.onsuccess = e => {
             const idb = e.target.result;
             idb.transaction("settings", "readonly").objectStore("settings").get("data").onsuccess = ev => {
-                if(ev.target.result) db = ev.target.result;
-                initApp();
+                if(ev.target.result) {
+                    db = ev.target.result; // প্রথমে লোকাল ডেটা লোড করো
+                    refreshStaticData(); // UI আপডেট করো
+                }
             };
         };
-        function saveDB() { dbRequest.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data"); refreshStaticData(); }
 
-        function initApp() { 
-            document.body.setAttribute('data-theme', db.theme); 
-            refreshStaticData(); setupDefaultDates();
-            if (db.state) {
-                Object.keys(db.state).forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && el.tagName === 'SELECT') {
-                        el.value = db.state[id];
-                    }
-                });
+        // Auth Listener: চেক করবে ইউজার লগইন আছে কিনা
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // ইউজার লগইন আছে
+                currentUser = user;
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('lockScreen').style.display = 'flex'; 
+                if(document.getElementById('loggedInEmail')) {
+                    document.getElementById('loggedInEmail').innerText = "👤 " + user.email;
+                }
+                // পিন স্ক্রিন দেখাও
+                syncData(); // সার্ভারের সাথে সিঙ্ক শুরু করো
             } else {
-                document.getElementById('dashMemSelect').value = "Band Payment";
+                // ইউজার লগইন নেই
+                currentUser = null;
+                document.getElementById('lockScreen').style.display = 'none';
+                document.getElementById('authScreen').style.display = 'flex'; // লগইন স্ক্রিন দেখাও
             }
-            document.querySelectorAll('select').forEach(el => {
-                el.addEventListener('change', () => {
-                    if (!db.state) db.state = {};
-                    db.state[el.id] = el.value;
-                    saveDB();
-                });
-            });
-            updateDash(); 
-        }
+        });
 
-        function formatD(dateStr) {
-            if(!dateStr) return "-";
-            const [y, m, d] = dateStr.split('-');
-            return `${d}/${m}/${y}`;
+        document.body.setAttribute('data-theme', db.theme); 
+        setupDefaultDates();
+        
+        // Select Inputs Listener
+        document.querySelectorAll('select').forEach(el => {
+            el.addEventListener('change', () => {
+                if (!db.state) db.state = {};
+                db.state[el.id] = el.value;
+                saveDB();
+            });
+        });
+    }
+
+    // --- 3. SYNC & SAVE LOGIC ---
+    
+    // Cloud + Local Save
+    function saveDB() { 
+        // 1. Save to Local IndexedDB (তাৎক্ষণিক সেভ)
+        const req = indexedDB.open("DotxBandDB", 1);
+        req.onsuccess = e => {
+             e.target.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data");
+        };
+
+        // 2. Save to Cloud (ব্যাকগ্রাউন্ডে ফায়ারবেসে পাঠাবে)
+        if(currentUser) {
+            dbStore.collection("users").doc(currentUser.uid).set(db, { merge: true })
+            .catch(e => console.log("Cloud Save Error:", e));
         }
         
-        function getMonthDiff(d1, d2) {
-            let months;
-            months = (d2.getFullYear() - d1.getFullYear()) * 12;
-            months -= d1.getMonth();
-            months += d2.getMonth();
-            return months <= 0 ? 1 : months + 1;
-        }
+        refreshStaticData(); 
+    }
 
-        function getAvgDisplay(amt, gigs, mode, monthCount) {
-            if (mode === 'month') {
-                const avgInc = monthCount > 0 ? Math.round(amt / monthCount).toLocaleString() : '0';
-                const avgGigs = monthCount > 0 ? (gigs / monthCount).toFixed(1) : '0';
-                return `Avg: ₹${avgInc} | ${avgGigs} Gigs / Mo`;
-            } else {
-                const avgInc = gigs > 0 ? Math.round(amt / gigs).toLocaleString() : '0';
-                return `Avg: ₹${avgInc} / Show`;
+    // Realtime Listener (ফায়ারবেস থেকে ডেটা নামাবে)
+    function syncData() {
+        if(!currentUser) return;
+        const docRef = dbStore.collection("users").doc(currentUser.uid);
+
+        unsubscribeSnapshot = docRef.onSnapshot((doc) => {
+            if (doc.exists) {
+                const cloudData = doc.data();
+                // ক্লাউড ডেটা লোকাল ভেরিয়েবলে মার্জ করা হচ্ছে
+                db = { ...db, ...cloudData }; 
+                refreshStaticData();
+                updateDash();
+                
+                // লোকাল স্টোরেজ আপডেট
+                const req = indexedDB.open("DotxBandDB", 1);
+                req.onsuccess = e => {
+                     e.target.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data");
+                };
             }
-        }
+        });
+    }
 
-        function setupDefaultDates() {
-            const cy = new Date().getFullYear();
-            const cm = new Date().getMonth();
-            const mFilters = ['dashStartMonth','dashEndMonth','anaStartMonth','anaEndMonth','histMonth','c1m','c2m'];
-            const yFilters = ['dashStartYear','dashEndYear','anaStartYear','anaEndYear','histYear','c1y','c2y'];
-            mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
-            populateChartYearSelectors(cy);
+    // Auth Functions
+    function handleLogin() {
+        const e = document.getElementById('fEmail').value;
+        const p = document.getElementById('fPass').value;
+        if(!e || !p) return notify("Enter Email & Password", "warning");
+        document.getElementById('authLoader').style.display = 'block';
+        auth.signInWithEmailAndPassword(e, p).catch(err => {
+            document.getElementById('authLoader').style.display = 'none';
+            document.getElementById('authMsg').innerText = err.message;
+        });
+    }
+
+    function handleSignup() {
+        const e = document.getElementById('fEmail').value;
+        const p = document.getElementById('fPass').value;
+        if(!e || !p) return notify("Enter Email & Password", "warning");
+        document.getElementById('authLoader').style.display = 'block';
+        auth.createUserWithEmailAndPassword(e, p).then(() => {
+            // নতুন ইউজারের জন্য বর্তমান ডেটা সেভ করা হচ্ছে
+            saveDB();
+        }).catch(err => {
+            document.getElementById('authLoader').style.display = 'none';
+            document.getElementById('authMsg').innerText = err.message;
+        });
+    }
+    
+    function handleLogout() {
+        if(confirm("Logout? You need internet to login again.")) {
+            if(unsubscribeSnapshot) unsubscribeSnapshot();
+            auth.signOut().then(() => location.reload());
+        }
+    }
+
+    // --- 4. IMAGE COMPRESSION (NEW) ---
+    // লোগো খুব ছোট সাইজে সেভ করার ফাংশন
+    function handleLogo(e) { 
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // আমরা সাইজ ফিক্স করে দিচ্ছি সর্বোচ্চ 100px (খুবই ছোট)
+                const maxWidth = 100; 
+                const scaleSize = maxWidth / img.width;
+                const newWidth = maxWidth;
+                const newHeight = img.height * scaleSize;
+
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+                // কোয়ালিটি কমিয়ে (0.6) JPEG তে কনভার্ট (সাইজ ৫-১০ কেবি হবে)
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                
+                db.logo = dataUrl;
+                saveDB(); // ক্লাউডে সেভ হবে
+                notify("Logo Optimized & Saved", "success");
+            }
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+
+    // --- STANDARD APP FUNCTIONS ---
+
+    function formatD(dateStr) {
+        if(!dateStr) return "-";
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
+    
+    function getMonthDiff(d1, d2) {
+        let months;
+        months = (d2.getFullYear() - d1.getFullYear()) * 12;
+        months -= d1.getMonth();
+        months += d2.getMonth();
+        return months <= 0 ? 1 : months + 1;
+    }
+
+    function getAvgDisplay(amt, gigs, mode, monthCount) {
+        if (mode === 'month') {
+            const avgInc = monthCount > 0 ? Math.round(amt / monthCount).toLocaleString() : '0';
+            const avgGigs = monthCount > 0 ? (gigs / monthCount).toFixed(1) : '0';
+            return `Avg: ₹${avgInc} | ${avgGigs} Gigs / Mo`;
+        } else {
+            const avgInc = gigs > 0 ? Math.round(amt / gigs).toLocaleString() : '0';
+            return `Avg: ₹${avgInc} / Show`;
+        }
+    }
+
+    function setupDefaultDates() {
+        const cy = new Date().getFullYear();
+        const cm = new Date().getMonth();
+        const mFilters = ['dashStartMonth','dashEndMonth','anaStartMonth','anaEndMonth','histMonth','c1m','c2m'];
+        const yFilters = ['dashStartYear','dashEndYear','anaStartYear','anaEndYear','histYear','c1y','c2y'];
+        mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
+        populateChartYearSelectors(cy);
+        
+        // Safety checks if elements exist
+        if(document.getElementById('dashStartMonth')) {
             ['dashStartMonth', 'anaStartMonth'].forEach(id => document.getElementById(id).value = 8);
             ['dashEndMonth', 'anaEndMonth'].forEach(id => document.getElementById(id).value = 7);
             ['dashStartYear', 'anaStartYear', 'histYear', 'c2y'].forEach(id => document.getElementById(id).value = cy);
@@ -438,467 +612,511 @@
             document.getElementById('c1m').value = cm;
             document.getElementById('c1y').value = cy - 1;
         }
+    }
 
-        function populateChartYearSelectors(cy) {
-            const opts = [];
-            for(let i = cy; i >= 2020; i--) opts.push(`<option value="${i}">${i}</option>`);
-            const optsWithNone = ['<option value="none">None</option>', ...opts];
-            document.getElementById('growthY1').innerHTML = opts.join('');
-            document.getElementById('growthY2').innerHTML = optsWithNone.join('');
-            document.getElementById('growthY3').innerHTML = optsWithNone.join('');
-            document.getElementById('growthY1').value = cy;
-            document.getElementById('growthY2').value = "none";
-            document.getElementById('growthY3').value = "none";
-        }
+    function populateChartYearSelectors(cy) {
+        const opts = [];
+        for(let i = cy; i >= 2020; i--) opts.push(`<option value="${i}">${i}</option>`);
+        const optsWithNone = ['<option value="none">None</option>', ...opts];
+        document.getElementById('growthY1').innerHTML = opts.join('');
+        document.getElementById('growthY2').innerHTML = optsWithNone.join('');
+        document.getElementById('growthY3').innerHTML = optsWithNone.join('');
+        document.getElementById('growthY1').value = cy;
+        document.getElementById('growthY2').value = "none";
+        document.getElementById('growthY3').value = "none";
+    }
 
-        function notify(msg, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const t = document.createElement('div'); t.className = 'toast';
-            t.style.background = type === 'success' ? 'var(--success)' : type === 'danger' ? 'var(--danger)' : type === 'warning' ? 'var(--warning)' : 'var(--info)';
-            t.innerText = msg; container.appendChild(t); setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
-        }
+    function notify(msg, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const t = document.createElement('div'); t.className = 'toast';
+        t.style.background = type === 'success' ? 'var(--success)' : type === 'danger' ? 'var(--danger)' : type === 'warning' ? 'var(--warning)' : 'var(--info)';
+        t.innerText = msg; container.appendChild(t); setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+    }
 
-        function pressNum(n) {
-            if(n === 'C') inputPin = ""; else if(n === 'B') inputPin = inputPin.slice(0, -1); else if(inputPin.length < 4) inputPin += n;
-            const d = document.getElementById('loginDots').children; for(let i=0; i<4; i++) d[i].className = i < inputPin.length ? 'dot active' : 'dot';
-            if(inputPin.length === 4) { if(inputPin === db.pin) { document.getElementById('lockScreen').style.display='none'; inputPin=""; } else { notify("Wrong PIN","danger"); inputPin=""; resetDots('loginDots'); } }
-        }
-        function pressActionNum(n) {
-            if(n === 'B') actionPin = actionPin.slice(0, -1); else if(actionPin.length < 4) actionPin += n;
-            const d = document.getElementById('actionDots').children; for(let i=0; i<4; i++) d[i].className = i < actionPin.length ? 'dot active' : 'dot';
-            if(actionPin.length === 4) { if(actionPin === db.pin) { const act = currentAction; closePinModal(); setTimeout(() => { if(act==='export') runExport(); if(act==='import') document.getElementById('inFile').click(); if(act==='reset') runReset(); }, 100); } else { notify("Wrong PIN","danger"); actionPin=""; resetDots('actionDots'); } }
-        }
-        function resetDots(id) { const d = document.getElementById(id).children; for(let i=0; i<4; i++) d[i].className = 'dot'; }
-        function secureAction(a) { currentAction = a; actionPin = ""; resetDots('actionDots'); document.getElementById('pinModal').style.display = 'flex'; }
-        function closePinModal() { document.getElementById('pinModal').style.display = 'none'; }
-        function confirmPinChange() { const np = document.getElementById('newPinInput').value; if(np.length===4){ db.pin=np; saveDB(); notify("PIN Updated","success"); document.getElementById('newPinInput').value=""; } else notify("Enter 4 digits","warning"); }
-
-        function saveAsPDF(doc, filename) {
-            const blob = doc.output('blob'); const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = filename;
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 200);
-        }
-
-        function exportReport(title, entity, data, sl, el, mCount) {
-            const doc = new jsPDF(); 
-            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(title + " Report", 35, 18);
-            
-            const total = data.reduce((a,b)=>a+b.amt, 0);
-            
-            // New AVG Calculations
-            const avgShow = data.length > 0 ? Math.round(total / data.length) : 0;
-            const avgIncMonth = mCount > 0 ? Math.round(total / mCount) : 0;
-            const avgGigsMonth = mCount > 0 ? (data.length / mCount).toFixed(1) : 0;
-            
-            doc.setFontSize(10); doc.setTextColor(0);
-            doc.text(`Name: ${entity}`, 14, 30);
-            doc.text(`Period: ${sl} to ${el}`, 14, 35);
-            doc.text(`Total Shows: ${data.length} | Total Earnings: INR ${total.toLocaleString()}`, 14, 40);
-            doc.text(`Avg Income/Show: INR ${avgShow.toLocaleString()}`, 14, 45);
-            doc.text(`Avg Income/Month: INR ${avgIncMonth.toLocaleString()} | Avg Gigs/Month: ${avgGigsMonth}`, 14, 50);
-            
-            doc.autoTable({ 
-                head: [['Date', 'Venue', 'Organizer', 'Amount ₹', 'Note']], 
-                body: data.map(i => [formatD(i.date), i.venue, i.org, i.amt.toLocaleString(), i.note || '-']), 
-                startY: 55 
-            });
-            addFooter(doc); saveAsPDF(doc, `${entity}_Report.pdf`);
-        }
-
-        function exportOrgFullPDF() {
-            const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
-            const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
-            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-            const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Organizer Summary Report", 35, 18);
-            doc.setFontSize(10); doc.setTextColor(0);
-            doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
-            const orgMap = {}; let tI = 0, tS = 0, tB = 0;
-            
-            // Only past gigs
-            const d = new Date();
-            const todayStr = new Date().toLocaleDateString('en-CA');
-
-            db.shows.forEach(x => { 
-                const d = new Date(x.date); 
-                if(d >= start && d <= end && x.date < todayStr) {
-                    if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
-                    let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
-                    orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
-                    tI += x.deal; tS++; tB += bp;
-                }
-            });
-            const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
-            doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Total Deal']], body: rows, startY: 38 });
-            
-            const avgDeal = tS > 0 ? Math.round(tI / tS) : 0;
-            doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Deal: INR ${tI.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
-            doc.text(`Average Deal per Show: INR ${avgDeal.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 15);
-            
-            addFooter(doc); saveAsPDF(doc, `Org_Summary.pdf`);
-        }
-
-        function exportGigPDF(id) { 
-            const s = db.shows.find(x => x.id === id); 
-            const doc = new jsPDF(); 
-            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){} 
-            
-            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(s.venue, 105, 20, {align: 'center'}); 
-            doc.setFontSize(11); doc.setTextColor(0);
-            doc.text(`${s.org} | ${formatD(s.date)}`, 105, 27, {align: 'center'});
-
-            doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-            doc.rect(20, 35, 80, 20, 'FD'); 
-            doc.setFontSize(10); doc.setTextColor(100);
-            doc.text("Total Deal", 60, 42, {align: 'center'});
-            doc.setFontSize(14); doc.setTextColor(16, 185, 129); 
-            doc.text(`INR ${s.deal.toLocaleString()}`, 60, 50, {align: 'center'});
-
-            const bpObj = s.payouts.find(p => p.name === "Band Payment");
-            const bpAmt = bpObj ? bpObj.amt : 0;
-            doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-            doc.rect(110, 35, 80, 20, 'FD'); 
-            doc.setFontSize(10); doc.setTextColor(100);
-            doc.text("Band Payment", 150, 42, {align: 'center'});
-            doc.setFontSize(14); doc.setTextColor(139, 92, 246); 
-            doc.text(`INR ${bpAmt.toLocaleString()}`, 150, 50, {align: 'center'});
-
-            if(s.note) {
-                doc.setFontSize(10); doc.setTextColor(80);
-                doc.text(`Note: ${s.note}`, 14, 65);
-            }
-
-            const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
-            const memTotal = memberPayouts.reduce((a, b) => a + b.amt, 0);
-
-            doc.autoTable({
-                head: [['Name', 'Amount', 'Mode', 'Note']], 
-                body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
-                startY: s.note ? 70 : 65,
-                headStyles: { fillColor: [220, 220, 220], textColor: 50, fontStyle: 'bold' },
-                theme: 'grid'
-            }); 
-            
-            const finalY = doc.lastAutoTable.finalY + 10;
-            doc.setFillColor(139, 92, 246); 
-            doc.rect(14, finalY, 182, 10, 'F');
-            doc.setTextColor(255); doc.setFontSize(11);
-            doc.text("Total Distributed", 20, finalY + 7);
-            doc.text(`INR ${memTotal.toLocaleString()}`, 190, finalY + 7, {align: 'right'});
-
-            addFooter(doc); 
-            saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
-        }
-
-        async function exportComparePDF() {
-            const mem = document.getElementById('compMemSelect').value;
-            const res1 = calculatePeriodData(1, mem);
-            const res2 = calculatePeriodData(2, mem);
-            const doc = new jsPDF();
-            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
-            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Advanced Comparison Report", 35, 18);
-            doc.setFontSize(10); doc.setTextColor(0);
-            doc.text(`Entity: ${mem}`, 14, 30);
-            doc.text(`P1: ${res1.label} | P2: ${res2.label}`, 14, 35);
-            
-            const avg1 = res1.gigs > 0 ? Math.round(res1.amt / res1.gigs) : 0;
-            const avg2 = res2.gigs > 0 ? Math.round(res2.amt / res2.gigs) : 0;
-            
-            doc.autoTable({ 
-                head: [['Metric', res1.label, res2.label, 'Diff']], 
-                body: [
-                    ['Total Income', res1.amt.toLocaleString(), res2.amt.toLocaleString(), (res2.amt-res1.amt).toLocaleString()], 
-                    ['Total Shows', res1.gigs, res2.gigs, res2.gigs-res1.gigs],
-                    ['Avg Income/Show', avg1.toLocaleString(), avg2.toLocaleString(), (avg2-avg1).toLocaleString()]
-                ], 
-                startY: 42 
-            });
-
-            const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
-            const orgRows = allOrgs.map(n => [n, res1.orgs[n]?.gigs || 0, `INR ${res1.orgs[n]?.earnings.toLocaleString() || 0}`, res2.orgs[n]?.gigs || 0, `INR ${res2.orgs[n]?.earnings.toLocaleString() || 0}`]);
-            doc.text("Organizer Comparison Breakdown", 14, doc.lastAutoTable.finalY + 15);
-            doc.autoTable({ head: [['Organizer', 'P1 Gigs', 'P1 Total', 'P2 Gigs', 'P2 Total']], body: orgRows, startY: doc.lastAutoTable.finalY + 20 });
-            addFooter(doc); saveAsPDF(doc, `Comparison_${mem}.pdf`);
-        }
-
-        function toggleCompFilters(id) { document.getElementById(`c${id}m`).style.display = document.getElementById(`c${id}Type`).value === 'year' ? 'none' : 'inline-block'; runComparison(); }
-        
-        function calculatePeriodData(id, mem) {
-            const type = document.getElementById(`c${id}Type`).value; const m = parseInt(document.getElementById(`c${id}m`).value); const y = parseInt(document.getElementById(`c${id}y`).value);
-            let amt = 0, gigs = 0, orgs = {}, list = [];
-            const todayStr = new Date().toLocaleDateString('en-CA');
-            const sLbl = type === 'year' ? `Jan ${y}` : `${months[m]} ${y}`;
-            const eLbl = type === 'year' ? `Dec ${y}` : `${months[m]} ${y}`;
-            const label = type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}`;
-            let mCount = 1;
-            if (type === 'year') { mCount = 12; }
-
-            db.shows.forEach(s => { 
-                if(s.date >= todayStr) return;
-                const sd = new Date(s.date);
-                const match = type === 'year' ? (sd.getFullYear() === y) : (sd.getFullYear() === y && sd.getMonth() === m);
-                if(match) { const p = s.payouts.find(px => px.name === mem); 
-                    if(p) { 
-                        amt += p.amt; 
-                        gigs++; 
-                        if(!orgs[s.org]) orgs[s.org] = { gigs: 0, earnings: 0, list: [] }; 
-                        orgs[s.org].gigs++; 
-                        orgs[s.org].earnings += p.amt; 
-                        const gigInfo = {id: s.id, date: s.date, venue: s.venue, org: s.org, amt: p.amt, note: p.note};
-                        orgs[s.org].list.push(gigInfo);
-                        list.push(gigInfo);
-                    } 
-                }
-            });
-            return { amt, gigs, orgs, label, list, sLbl, eLbl, mCount };
-        }
-
-        function runComparison() {
-            const mem = document.getElementById('compMemSelect').value; 
-            const avgMode = document.getElementById('compAvgMode').value;
-            const res1 = calculatePeriodData(1, mem); 
-            const res2 = calculatePeriodData(2, mem);
-            compData = { p1: res1, p2: res2, mem: mem };
-            const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
-            let t1G = 0, t1E = 0, t2G = 0, t2E = 0;
-            let orgHtml = allOrgs.map(name => { 
-                const o1 = res1.orgs[name] || { gigs: 0, earnings: 0, list: [] }; 
-                const o2 = res2.orgs[name] || { gigs: 0, earnings: 0, list: [] };
-                t1G += o1.gigs; t1E += o1.earnings;
-                t2G += o2.gigs; t2E += o2.earnings;
-                const c1 = o1.list.length ? `onclick="openOrgDetail('p1', '${name}')" class="clickable-cell"` : '';
-                const c2 = o2.list.length ? `onclick="openOrgDetail('p2', '${name}')" class="clickable-cell"` : '';
-                return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%" ${c1}>${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%" ${c2}><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
-            }).join('');
-            orgHtml += `<div class="bk-row" style="border-top:2px solid var(--border); color:var(--text); font-weight:bold;"><div style="width:40%">TOTAL</div><div style="width:30%">${t1G} (₹${t1E.toLocaleString()})</div><div style="width:30%">${t2G} (₹${t2E.toLocaleString()})</div></div>`;
-            const avg1 = getAvgDisplay(res1.amt, res1.gigs, avgMode, res1.mCount);
-            const avg2 = getAvgDisplay(res2.amt, res2.gigs, avgMode, res2.mCount);
-            document.getElementById('compResult').innerHTML = `
-            <div class="comp-grid">
-                <div class="comp-card" onclick="openCompDetail('p1')"><small>${res1.label}</small><h3>₹${res1.amt.toLocaleString()}</h3><p>${res1.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg1}</small></div>
-                <div class="comp-card" onclick="openCompDetail('p2')"><small>${res2.label}</small><h3>₹${res2.amt.toLocaleString()}</h3><p>${res2.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg2}</small></div>
-            </div>
-            <div class="glass-card" style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>${orgHtml || '<p>No data</p>'}</div>`;
-        }
-
-        function openCompDetail(key) {
-            const d = compData[key];
-            if(d && d.list.length > 0) {
-                renderBreakdownModal(`${d.label} Breakdown`, compData.mem, d.list, d.sLbl, d.eLbl);
-            } else {
-                notify("No data for this period", "warning");
-            }
-        }
-
-        function openOrgDetail(key, orgName) {
-            const d = compData[key];
-            if(d && d.orgs[orgName] && d.orgs[orgName].list.length > 0) {
-                 renderBreakdownModal(`${orgName} (${d.label})`, compData.mem, d.orgs[orgName].list, d.sLbl, d.eLbl);
-            }
-        }
-
-        function updateDash() {
-            const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
-            const avgMode = document.getElementById('dashAvgMode').value;
-            const todayStr = new Date().toLocaleDateString('en-CA'); 
-            const now = new Date();
-            let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
-            const start = new Date(document.getElementById('dashStartYear').value, document.getElementById('dashStartMonth').value, 1);
-            const end = new Date(document.getElementById('dashEndYear').value, document.getElementById('dashEndMonth').value, 31);
-            const gy1 = parseInt(document.getElementById('growthY1').value);
-            const gy2 = document.getElementById('growthY2').value === 'none' ? null : parseInt(document.getElementById('growthY2').value);
-            const gy3 = document.getElementById('growthY3').value === 'none' ? null : parseInt(document.getElementById('growthY3').value);
-            let gData1 = new Array(12).fill(0); let gData2 = new Array(12).fill(0); let gData3 = new Array(12).fill(0);
-            let gCount1 = new Array(12).fill(0); let gCount2 = new Array(12).fill(0); let gCount3 = new Array(12).fill(0);
-            let reminders = []; let earliestDate = new Date(); 
-
-            db.shows.forEach(s => { 
-                const sd = new Date(s.date); 
-                if(s.date === todayStr) { reminders.push(s); }
-                if(s.date < todayStr) {
-                    if (sd < earliestDate) earliestDate = sd;
-                    s.payouts.forEach(p => { 
-                        if(p.name === mem) { 
-                            lAmt += p.amt; lG++; 
-                            if(sd.getMonth()===now.getMonth() && sd.getFullYear()===now.getFullYear()){mAmt+=p.amt; mG++;} 
-                            if(sd.getFullYear()===now.getFullYear()){ yAmt+=p.amt; yG++; } 
-                            if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
-                            if(sd.getFullYear() === gy1) { gData1[sd.getMonth()] += p.amt; gCount1[sd.getMonth()]++; }
-                            if(gy2 && sd.getFullYear() === gy2) { gData2[sd.getMonth()] += p.amt; gCount2[sd.getMonth()]++; }
-                            if(gy3 && sd.getFullYear() === gy3) { gData3[sd.getMonth()] += p.amt; gCount3[sd.getMonth()]++; }
-                        }
+    function pressNum(n) {
+        if(n === 'C') inputPin = ""; else if(n === 'B') inputPin = inputPin.slice(0, -1); else if(inputPin.length < 4) inputPin += n;
+        const d = document.getElementById('loginDots').children; for(let i=0; i<4; i++) d[i].className = i < inputPin.length ? 'dot active' : 'dot';
+        if(inputPin.length === 4) { 
+            if(inputPin === db.pin) { 
+                document.getElementById('lockScreen').style.display='none'; 
+                inputPin=""; 
+                // Restore state selects
+                if (db.state) {
+                    Object.keys(db.state).forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && el.tagName === 'SELECT') el.value = db.state[id];
                     });
                 }
-            });
+                updateDash();
+            } else { 
+                notify("Wrong PIN","danger"); inputPin=""; resetDots('loginDots'); 
+            } 
+        }
+    }
+    
+    function pressActionNum(n) {
+        if(n === 'B') actionPin = actionPin.slice(0, -1); else if(actionPin.length < 4) actionPin += n;
+        const d = document.getElementById('actionDots').children; for(let i=0; i<4; i++) d[i].className = i < actionPin.length ? 'dot active' : 'dot';
+        if(actionPin.length === 4) { if(actionPin === db.pin) { const act = currentAction; closePinModal(); setTimeout(() => { if(act==='export') runExport(); if(act==='import') document.getElementById('inFile').click(); if(act==='reset') runReset(); }, 100); } else { notify("Wrong PIN","danger"); actionPin=""; resetDots('actionDots'); } }
+    }
+    function resetDots(id) { const d = document.getElementById(id).children; for(let i=0; i<4; i++) d[i].className = 'dot'; }
+    function secureAction(a) { currentAction = a; actionPin = ""; resetDots('actionDots'); document.getElementById('pinModal').style.display = 'flex'; }
+    function closePinModal() { document.getElementById('pinModal').style.display = 'none'; }
+    function confirmPinChange() { const np = document.getElementById('newPinInput').value; if(np.length===4){ db.pin=np; saveDB(); notify("PIN Updated","success"); document.getElementById('newPinInput').value=""; } else notify("Enter 4 digits","warning"); }
 
-            const lifetimeMonths = getMonthDiff(earliestDate, now);
-            const yearMonths = (now.getMonth() + 1); 
-            const customMonths = getMonthDiff(start, end);
+    function saveAsPDF(doc, filename) {
+        const blob = doc.output('blob'); const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 200);
+    }
 
-            const rDiv = document.getElementById('reminderArea');
-            if(reminders.length > 0) {
-                rDiv.innerHTML = reminders.map(r => `<div class="reminder-box" onclick="viewGigDetails(${r.id})">🔔 TODAY: ${r.venue} (${r.org})</div>`).join('');
-                rDiv.style.display = 'block';
-            } else {
-                rDiv.style.display = 'none';
+    function exportReport(title, entity, data, sl, el, mCount) {
+        const doc = new jsPDF(); 
+        if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){}
+        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(title + " Report", 35, 18);
+        
+        const total = data.reduce((a,b)=>a+b.amt, 0);
+        
+        const avgShow = data.length > 0 ? Math.round(total / data.length) : 0;
+        const avgIncMonth = mCount > 0 ? Math.round(total / mCount) : 0;
+        const avgGigsMonth = mCount > 0 ? (data.length / mCount).toFixed(1) : 0;
+        
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Name: ${entity}`, 14, 30);
+        doc.text(`Period: ${sl} to ${el}`, 14, 35);
+        doc.text(`Total Shows: ${data.length} | Total Earnings: INR ${total.toLocaleString()}`, 14, 40);
+        doc.text(`Avg Income/Show: INR ${avgShow.toLocaleString()}`, 14, 45);
+        doc.text(`Avg Income/Month: INR ${avgIncMonth.toLocaleString()} | Avg Gigs/Month: ${avgGigsMonth}`, 14, 50);
+        
+        doc.autoTable({ 
+            head: [['Date', 'Venue', 'Organizer', 'Amount ₹', 'Note']], 
+            body: data.map(i => [formatD(i.date), i.venue, i.org, i.amt.toLocaleString(), i.note || '-']), 
+            startY: 55 
+        });
+        addFooter(doc); saveAsPDF(doc, `${entity}_Report.pdf`);
+    }
+
+    function exportOrgFullPDF() {
+        const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
+        const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
+        const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+        const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){}
+        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Organizer Summary Report", 35, 18);
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
+        const orgMap = {}; let tI = 0, tS = 0, tB = 0;
+        const todayStr = new Date().toLocaleDateString('en-CA');
+
+        db.shows.forEach(x => { 
+            const d = new Date(x.date); 
+            if(d >= start && d <= end && x.date < todayStr) {
+                if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
+                let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
+                orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
+                tI += x.deal; tS++; tB += bp;
             }
-
-            document.getElementById('dashLifetimeAmt').innerHTML=`₹${lAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(lAmt, lG, avgMode, lifetimeMonths)}</span>`; 
-            document.getElementById('dashLifetimeGigs').innerText=`${lG} Shows`;
-            document.getElementById('dashMonthAmt').innerHTML=`₹${mAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(mAmt, mG, avgMode, 1)}</span>`; 
-            document.getElementById('dashMonthGigs').innerText=`${mG} Gigs`;
-            document.getElementById('dashYearAmt').innerHTML=`₹${yAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(yAmt, yG, avgMode, yearMonths)}</span>`; 
-            document.getElementById('dashYearGigs').innerText=`${yG} Gigs`;
-            document.getElementById('dashCustomAmt').innerHTML=`₹${cAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(cAmt, cG, avgMode, customMonths)}</span>`; 
-            document.getElementById('dashCustomGigs').innerText=`${cG} Shows`;
-            renderDashGrowthChart(gData1, gData2, gData3, gy1, gy2, gy3, gCount1, gCount2, gCount3);
-        }
-
-        function renderDashGrowthChart(d1, d2, d3, y1, y2, y3, c1, c2, c3) {
-            if(dashLineChart) dashLineChart.destroy();
-            const ctx = document.getElementById('dashGrowthChart').getContext('2d');
-            let datasets = [{ label: y1, data: d1, gigCounts: c1, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.15)', tension: 0.3, borderWidth: 3, pointRadius: 3 }];
-            if(y2 !== null) { datasets.push({ label: y2, data: d2, gigCounts: c2, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
-            if(y3 !== null) { datasets.push({ label: y3, data: d3, gigCounts: c3, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
-            dashLineChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: months.map(m => m.substring(0,3)), datasets: datasets },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: {family: 'Outfit'} } }, tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += '₹' + context.parsed.y.toLocaleString(); } let count = context.dataset.gigCounts[context.dataIndex]; return label + ' (' + count + ' Gigs)'; } } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10, family: 'Outfit' } } }, x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Outfit' } } } } }
-            });
-        }
-
-        function refreshStaticData() {
-            const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; const os = db.dir.filter(d=>d.type==='o').map(d=>d.name).sort();
-            const dashMem = document.getElementById('dashMemSelect').value; const compMem = document.getElementById('compMemSelect').value;
-            document.getElementById('dashMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
-            document.getElementById('dashMemSelect').value = dashMem || "Band Payment";
-            document.getElementById('compMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
-            document.getElementById('compMemSelect').value = compMem || "Band Payment";
-            document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
-            document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
-            if(db.logo) { const lp = document.getElementById('logoPreview'); const hl = document.getElementById('headerLogo'); lp.src = db.logo; lp.style.display = 'block'; hl.src = db.logo; hl.style.display = 'block'; }
-        }
-
-        function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
+        });
+        const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
+        doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Total Deal']], body: rows, startY: 38 });
         
-        function populateFilters(m, y, a=true) { 
-            document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); 
-            const yrs=[2023,2024,2025,2026,2027,2028]; 
-            let yOpts = yrs.map(v=>`<option value="${v}">${v}</option>`).join('');
-            if(y === 'histYear') { yOpts = '<option value="lifetime">Lifetime</option>' + yOpts; }
-            document.getElementById(y).innerHTML = yOpts; 
-        }
-
-        function addDirectory() { const v=document.getElementById('dirInput').value, t=document.getElementById('dirType').value; if(v){ db.dir.push({name:v, type:t}); saveDB(); document.getElementById('dirInput').value=""; } }
-        function delDir(i) { db.dir.splice(i,1); saveDB(); }
-
-        function addRow(p='') { 
-            const d=document.createElement('div'); d.className='payout-row'; d.style.marginBottom = "10px";
-            d.innerHTML=`<input class="pn" list="memDList" placeholder="Name" value="${p}"><div style="display:flex; gap:5px;"><input type="number" class="pa" placeholder="₹"><select class="pm"><option value="Cash">Cash</option><option value="Online">Online</option></select></div><input type="text" class="pnote" placeholder="Payment Note/Txn ID" style="margin-top:5px;"><button onclick="this.parentElement.remove()" style="color:var(--danger); background:none; border:none; float:right; font-size:18px;">×</button><div style="clear:both"></div>`; 
-            document.getElementById('payoutArea').appendChild(d); 
-        }
-
-        function saveShow() { 
-            const v=document.getElementById('vName').value; if(!v) return notify("Venue required","danger"); 
-            const pA=[]; document.querySelectorAll('.payout-row').forEach(r=>{ const n=r.querySelector('.pn').value; if(n) pA.push({ name:n, amt:parseFloat(r.querySelector('.pa').value||0), mode:r.querySelector('.pm').value, note:r.querySelector('.pnote').value||'' }); }); 
-            const id=document.getElementById('editId').value; 
-            const g={ id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), note: document.getElementById('gNote').value, payouts: pA }; 
-            if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
-            saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
-        }
-
-        function renderHistory() { 
-            const fM = document.getElementById('histMonth').value; const fY = document.getElementById('histYear').value; const q = document.getElementById('histSearch').value.toLowerCase().trim();
-            const list = db.shows.filter(s => { const d = new Date(s.date); let dateMatch = false; if(fY === 'lifetime') { dateMatch = true; } else { dateMatch = d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM); } if(!dateMatch) return false; if(!q) return true; const searchStr = `${s.venue} ${s.org} ${formatD(s.date)} ${s.deal}`.toLowerCase(); return searchStr.includes(q); }).sort((a,b)=>new Date(b.date)-new Date(a.date)); 
-            document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br><span style="color:var(--success); font-weight:bold;">₹${s.deal}</span></div>`).join('') || '<p style="text-align:center; opacity:0.6;">No Data</p>'; 
-        }
+        const avgDeal = tS > 0 ? Math.round(tI / tS) : 0;
+        doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Deal: INR ${tI.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
+        doc.text(`Average Deal per Show: INR ${avgDeal.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 15);
         
-        function viewGigDetails(id) { 
-            const s=db.shows.find(x=>x.id===id); 
-            const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
-            const memPayouts = s.payouts.filter(p => p.name !== "Band Payment"); const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
-            document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}<div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div><div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div><div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div><button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
-            document.getElementById('detailModal').style.display='flex'; 
+        addFooter(doc); saveAsPDF(doc, `Org_Summary.pdf`);
+    }
+
+    function exportGigPDF(id) { 
+        const s = db.shows.find(x => x.id === id); 
+        const doc = new jsPDF(); 
+        if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){} 
+        
+        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(s.venue, 105, 20, {align: 'center'}); 
+        doc.setFontSize(11); doc.setTextColor(0);
+        doc.text(`${s.org} | ${formatD(s.date)}`, 105, 27, {align: 'center'});
+
+        doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
+        doc.rect(20, 35, 80, 20, 'FD'); 
+        doc.setFontSize(10); doc.setTextColor(100);
+        doc.text("Total Deal", 60, 42, {align: 'center'});
+        doc.setFontSize(14); doc.setTextColor(16, 185, 129); 
+        doc.text(`INR ${s.deal.toLocaleString()}`, 60, 50, {align: 'center'});
+
+        const bpObj = s.payouts.find(p => p.name === "Band Payment");
+        const bpAmt = bpObj ? bpObj.amt : 0;
+        doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
+        doc.rect(110, 35, 80, 20, 'FD'); 
+        doc.setFontSize(10); doc.setTextColor(100);
+        doc.text("Band Payment", 150, 42, {align: 'center'});
+        doc.setFontSize(14); doc.setTextColor(139, 92, 246); 
+        doc.text(`INR ${bpAmt.toLocaleString()}`, 150, 50, {align: 'center'});
+
+        if(s.note) {
+            doc.setFontSize(10); doc.setTextColor(80);
+            doc.text(`Note: ${s.note}`, 14, 65);
         }
 
-        function deleteGig(id) { if(confirm("Delete this Gig?")){ db.shows = db.shows.filter(s => s.id !== id); saveDB(); document.getElementById('detailModal').style.display='none'; renderHistory(); updateDash(); notify("Gig Deleted", "danger"); } }
+        const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
+        const memTotal = memberPayouts.reduce((a, b) => a + b.amt, 0);
 
-        function exportMemberPDF() {
-            const name = document.getElementById('memSelect').value; if(!name) return;
-            const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
-            const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
-            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-            const data = []; db.shows.forEach(s => { const d = new Date(s.date); if(d >= start && d <= end){ s.payouts.forEach(p=>{if(p.name===name) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
-            
-            // Calculate Stats for PDF
-            const mCount = getMonthDiff(start, end);
-            exportReport("Performance", name, data, `${months[sm]} ${sy}`, `${months[em]} ${ey}`, mCount);
-        }
-        function viewBreakdown(type) {
-            const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
-            const now = new Date(); let start, end, title, sl, el;
-            if(type==='lifetime'){ start=new Date(2000,0,1); end=new Date(2100,0,1); title="Lifetime"; sl="Start"; el="Current"; }
-            else if(type==='month'){ start=new Date(now.getFullYear(),now.getMonth(),1); end=new Date(now.getFullYear(),now.getMonth(),31); title="Monthly"; sl=months[now.getMonth()]+" "+now.getFullYear(); el=sl; }
-            else if(type==='year'){ start=new Date(now.getFullYear(),0,1); end=new Date(now.getFullYear(),11,31); title="Yearly"; sl="Jan "+now.getFullYear(); el="Dec "+now.getFullYear(); }
-            else { 
-                const sm = parseInt(document.getElementById('dashStartMonth').value); const sy = parseInt(document.getElementById('dashStartYear').value);
-                const em = parseInt(document.getElementById('dashEndMonth').value); const ey = parseInt(document.getElementById('dashEndYear').value);
-                start = new Date(sy, sm, 1); end = new Date(ey, em, 31); title="Custom Period"; sl = `${months[sm]} ${sy}`; el = `${months[em]} ${ey}`;
+        doc.autoTable({
+            head: [['Name', 'Amount', 'Mode', 'Note']], 
+            body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
+            startY: s.note ? 70 : 65,
+            headStyles: { fillColor: [220, 220, 220], textColor: 50, fontStyle: 'bold' },
+            theme: 'grid'
+        }); 
+        
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFillColor(139, 92, 246); 
+        doc.rect(14, finalY, 182, 10, 'F');
+        doc.setTextColor(255); doc.setFontSize(11);
+        doc.text("Total Distributed", 20, finalY + 7);
+        doc.text(`INR ${memTotal.toLocaleString()}`, 190, finalY + 7, {align: 'right'});
+
+        addFooter(doc); 
+        saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
+    }
+
+    async function exportComparePDF() {
+        const mem = document.getElementById('compMemSelect').value;
+        const res1 = calculatePeriodData(1, mem);
+        const res2 = calculatePeriodData(2, mem);
+        const doc = new jsPDF();
+        if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){}
+        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Advanced Comparison Report", 35, 18);
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Entity: ${mem}`, 14, 30);
+        doc.text(`P1: ${res1.label} | P2: ${res2.label}`, 14, 35);
+        
+        const avg1 = res1.gigs > 0 ? Math.round(res1.amt / res1.gigs) : 0;
+        const avg2 = res2.gigs > 0 ? Math.round(res2.amt / res2.gigs) : 0;
+        
+        doc.autoTable({ 
+            head: [['Metric', res1.label, res2.label, 'Diff']], 
+            body: [
+                ['Total Income', res1.amt.toLocaleString(), res2.amt.toLocaleString(), (res2.amt-res1.amt).toLocaleString()], 
+                ['Total Shows', res1.gigs, res2.gigs, res2.gigs-res1.gigs],
+                ['Avg Income/Show', avg1.toLocaleString(), avg2.toLocaleString(), (avg2-avg1).toLocaleString()]
+            ], 
+            startY: 42 
+        });
+
+        const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
+        const orgRows = allOrgs.map(n => [n, res1.orgs[n]?.gigs || 0, `INR ${res1.orgs[n]?.earnings.toLocaleString() || 0}`, res2.orgs[n]?.gigs || 0, `INR ${res2.orgs[n]?.earnings.toLocaleString() || 0}`]);
+        doc.text("Organizer Comparison Breakdown", 14, doc.lastAutoTable.finalY + 15);
+        doc.autoTable({ head: [['Organizer', 'P1 Gigs', 'P1 Total', 'P2 Gigs', 'P2 Total']], body: orgRows, startY: doc.lastAutoTable.finalY + 20 });
+        addFooter(doc); saveAsPDF(doc, `Comparison_${mem}.pdf`);
+    }
+
+    function toggleCompFilters(id) { document.getElementById(`c${id}m`).style.display = document.getElementById(`c${id}Type`).value === 'year' ? 'none' : 'inline-block'; runComparison(); }
+    
+    function calculatePeriodData(id, mem) {
+        const type = document.getElementById(`c${id}Type`).value; const m = parseInt(document.getElementById(`c${id}m`).value); const y = parseInt(document.getElementById(`c${id}y`).value);
+        let amt = 0, gigs = 0, orgs = {}, list = [];
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const sLbl = type === 'year' ? `Jan ${y}` : `${months[m]} ${y}`;
+        const eLbl = type === 'year' ? `Dec ${y}` : `${months[m]} ${y}`;
+        const label = type === 'year' ? `Year ${y}` : `${months[m].slice(0,3)} ${y}`;
+        let mCount = 1;
+        if (type === 'year') { mCount = 12; }
+
+        db.shows.forEach(s => { 
+            if(s.date >= todayStr) return;
+            const sd = new Date(s.date);
+            const match = type === 'year' ? (sd.getFullYear() === y) : (sd.getFullYear() === y && sd.getMonth() === m);
+            if(match) { const p = s.payouts.find(px => px.name === mem); 
+                if(p) { 
+                    amt += p.amt; 
+                    gigs++; 
+                    if(!orgs[s.org]) orgs[s.org] = { gigs: 0, earnings: 0, list: [] }; 
+                    orgs[s.org].gigs++; 
+                    orgs[s.org].earnings += p.amt; 
+                    const gigInfo = {id: s.id, date: s.date, venue: s.venue, org: s.org, amt: p.amt, note: p.note};
+                    orgs[s.org].list.push(gigInfo);
+                    list.push(gigInfo);
+                } 
             }
-            const data = []; db.shows.forEach(s => { if(new Date(s.date)>=start && new Date(s.date)<=end){ s.payouts.forEach(p=>{if(p.name===mem) data.push({id: s.id, date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
-            renderBreakdownModal(title, mem, data, sl, el);
+        });
+        return { amt, gigs, orgs, label, list, sLbl, eLbl, mCount };
+    }
+
+    function runComparison() {
+        const mem = document.getElementById('compMemSelect').value; 
+        const avgMode = document.getElementById('compAvgMode').value;
+        const res1 = calculatePeriodData(1, mem); 
+        const res2 = calculatePeriodData(2, mem);
+        compData = { p1: res1, p2: res2, mem: mem };
+        const allOrgs = Array.from(new Set([...Object.keys(res1.orgs), ...Object.keys(res2.orgs)])).sort();
+        let t1G = 0, t1E = 0, t2G = 0, t2E = 0;
+        let orgHtml = allOrgs.map(name => { 
+            const o1 = res1.orgs[name] || { gigs: 0, earnings: 0, list: [] }; 
+            const o2 = res2.orgs[name] || { gigs: 0, earnings: 0, list: [] };
+            t1G += o1.gigs; t1E += o1.earnings;
+            t2G += o2.gigs; t2E += o2.earnings;
+            const c1 = o1.list.length ? `onclick="openOrgDetail('p1', '${name}')" class="clickable-cell"` : '';
+            const c2 = o2.list.length ? `onclick="openOrgDetail('p2', '${name}')" class="clickable-cell"` : '';
+            return `<div class="bk-row"><div style="width:40%"><strong>${name}</strong></div><div style="width:30%" ${c1}>${o1.gigs} (₹${o1.earnings.toLocaleString()})</div><div style="width:30%" ${c2}><strong>${o2.gigs} (₹${o2.earnings.toLocaleString()})</strong></div></div>`;
+        }).join('');
+        orgHtml += `<div class="bk-row" style="border-top:2px solid var(--border); color:var(--text); font-weight:bold;"><div style="width:40%">TOTAL</div><div style="width:30%">${t1G} (₹${t1E.toLocaleString()})</div><div style="width:30%">${t2G} (₹${t2E.toLocaleString()})</div></div>`;
+        const avg1 = getAvgDisplay(res1.amt, res1.gigs, avgMode, res1.mCount);
+        const avg2 = getAvgDisplay(res2.amt, res2.gigs, avgMode, res2.mCount);
+        document.getElementById('compResult').innerHTML = `
+        <div class="comp-grid">
+            <div class="comp-card" onclick="openCompDetail('p1')"><small>${res1.label}</small><h3>₹${res1.amt.toLocaleString()}</h3><p>${res1.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg1}</small></div>
+            <div class="comp-card" onclick="openCompDetail('p2')"><small>${res2.label}</small><h3>₹${res2.amt.toLocaleString()}</h3><p>${res2.gigs} Gigs</p><small style="opacity:0.7; border-top:1px solid rgba(255,255,255,0.3); padding-top:4px; display:block; margin-top:4px;">${avg2}</small></div>
+        </div>
+        <div class="glass-card" style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim)"><span>Organizer</span><span>P1 (G/₹)</span><span>P2 (G/₹)</span></div>${orgHtml || '<p>No data</p>'}</div>`;
+    }
+
+    function openCompDetail(key) {
+        const d = compData[key];
+        if(d && d.list.length > 0) {
+            renderBreakdownModal(`${d.label} Breakdown`, compData.mem, d.list, d.sLbl, d.eLbl);
+        } else {
+            notify("No data for this period", "warning");
         }
-        function renderBreakdownModal(title, entity, data, sl, el) {
-            let html = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3>${title}</h3><p>${entity}</p><div style="margin-top:15px; border-top:1px solid var(--border)">`;
-            let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; 
-                const clk = i.id ? `onclick="viewGigDetails(${i.id})"` : ''; const cursorStyle = i.id ? 'cursor:pointer;' : '';
-                html += `<div class="bk-row" ${clk} style="${cursorStyle}"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; 
-            });
-            html += `<div style="display:flex; justify-content:space-between; padding:15px 0; color:var(--accent);"><strong>TOTAL</strong><strong>₹${t.toLocaleString()}</strong></div></div><button class="btn-main" id="dlBreakdownPdf">DOWNLOAD PDF</button>`;
-            document.getElementById('modalBody').innerHTML = html; document.getElementById('detailModal').style.display = 'flex';
-            // Determine dates for PDF if not provided (fallback)
-            document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el, 1);
+    }
+
+    function openOrgDetail(key, orgName) {
+        const d = compData[key];
+        if(d && d.orgs[orgName] && d.orgs[orgName].list.length > 0) {
+             renderBreakdownModal(`${orgName} (${d.label})`, compData.mem, d.orgs[orgName].list, d.sLbl, d.eLbl);
         }
-        function toggleAnalysisMode() { const m = document.getElementById('analysisType').value; document.getElementById('memberSection').style.display=m==='member'?'block':'none'; document.getElementById('orgSection').style.display=m==='organizer'?'block':'none'; if(m==='member'){ const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; document.getElementById('memSelect').innerHTML = '<option value="">Select Member</option>' + ms.map(n => `<option value="${n}">${n}</option>`).join(''); } triggerAnalysis(); }
-        function triggerAnalysis() { const mode = document.getElementById('analysisType').value; if(mode === 'member') runMemberAnalysis(); else runOrgAnalysis(); }
+    }
+
+    function updateDash() {
+        const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
+        const avgMode = document.getElementById('dashAvgMode').value;
+        const todayStr = new Date().toLocaleDateString('en-CA'); 
+        const now = new Date();
+        let lAmt=0, lG=0, mAmt=0, mG=0, yAmt=0, yG=0, cAmt=0, cG=0;
+        const start = new Date(document.getElementById('dashStartYear').value, document.getElementById('dashStartMonth').value, 1);
+        const end = new Date(document.getElementById('dashEndYear').value, document.getElementById('dashEndMonth').value, 31);
+        const gy1 = parseInt(document.getElementById('growthY1').value);
+        const gy2 = document.getElementById('growthY2').value === 'none' ? null : parseInt(document.getElementById('growthY2').value);
+        const gy3 = document.getElementById('growthY3').value === 'none' ? null : parseInt(document.getElementById('growthY3').value);
+        let gData1 = new Array(12).fill(0); let gData2 = new Array(12).fill(0); let gData3 = new Array(12).fill(0);
+        let gCount1 = new Array(12).fill(0); let gCount2 = new Array(12).fill(0); let gCount3 = new Array(12).fill(0);
+        let reminders = []; let earliestDate = new Date(); 
+
+        db.shows.forEach(s => { 
+            const sd = new Date(s.date); 
+            if(s.date === todayStr) { reminders.push(s); }
+            if(s.date < todayStr) {
+                if (sd < earliestDate) earliestDate = sd;
+                s.payouts.forEach(p => { 
+                    if(p.name === mem) { 
+                        lAmt += p.amt; lG++; 
+                        if(sd.getMonth()===now.getMonth() && sd.getFullYear()===now.getFullYear()){mAmt+=p.amt; mG++;} 
+                        if(sd.getFullYear()===now.getFullYear()){ yAmt+=p.amt; yG++; } 
+                        if(sd>=start&&sd<=end){cAmt+=p.amt; cG++;} 
+                        if(sd.getFullYear() === gy1) { gData1[sd.getMonth()] += p.amt; gCount1[sd.getMonth()]++; }
+                        if(gy2 && sd.getFullYear() === gy2) { gData2[sd.getMonth()] += p.amt; gCount2[sd.getMonth()]++; }
+                        if(gy3 && sd.getFullYear() === gy3) { gData3[sd.getMonth()] += p.amt; gCount3[sd.getMonth()]++; }
+                    }
+                });
+            }
+        });
+
+        const lifetimeMonths = getMonthDiff(earliestDate, now);
+        const yearMonths = (now.getMonth() + 1); 
+        const customMonths = getMonthDiff(start, end);
+
+        const rDiv = document.getElementById('reminderArea');
+        if(reminders.length > 0) {
+            rDiv.innerHTML = reminders.map(r => `<div class="reminder-box" onclick="viewGigDetails(${r.id})">🔔 TODAY: ${r.venue} (${r.org})</div>`).join('');
+            rDiv.style.display = 'block';
+        } else {
+            rDiv.style.display = 'none';
+        }
+
+        document.getElementById('dashLifetimeAmt').innerHTML=`₹${lAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(lAmt, lG, avgMode, lifetimeMonths)}</span>`; 
+        document.getElementById('dashLifetimeGigs').innerText=`${lG} Shows`;
+        document.getElementById('dashMonthAmt').innerHTML=`₹${mAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(mAmt, mG, avgMode, 1)}</span>`; 
+        document.getElementById('dashMonthGigs').innerText=`${mG} Gigs`;
+        document.getElementById('dashYearAmt').innerHTML=`₹${yAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(yAmt, yG, avgMode, yearMonths)}</span>`; 
+        document.getElementById('dashYearGigs').innerText=`${yG} Gigs`;
+        document.getElementById('dashCustomAmt').innerHTML=`₹${cAmt.toLocaleString()}<br><span style="font-size:10px; opacity:0.8; font-weight:normal">${getAvgDisplay(cAmt, cG, avgMode, customMonths)}</span>`; 
+        document.getElementById('dashCustomGigs').innerText=`${cG} Shows`;
+        renderDashGrowthChart(gData1, gData2, gData3, gy1, gy2, gy3, gCount1, gCount2, gCount3);
+    }
+
+    function renderDashGrowthChart(d1, d2, d3, y1, y2, y3, c1, c2, c3) {
+        if(dashLineChart) dashLineChart.destroy();
+        const ctx = document.getElementById('dashGrowthChart').getContext('2d');
+        let datasets = [{ label: y1, data: d1, gigCounts: c1, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.15)', tension: 0.3, borderWidth: 3, pointRadius: 3 }];
+        if(y2 !== null) { datasets.push({ label: y2, data: d2, gigCounts: c2, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
+        if(y3 !== null) { datasets.push({ label: y3, data: d3, gigCounts: c3, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.0)', tension: 0.3, borderWidth: 3, pointRadius: 3 }); }
+        dashLineChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: months.map(m => m.substring(0,3)), datasets: datasets },
+            options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: {family: 'Outfit'} } }, tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += '₹' + context.parsed.y.toLocaleString(); } let count = context.dataset.gigCounts[context.dataIndex]; return label + ' (' + count + ' Gigs)'; } } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10, family: 'Outfit' } } }, x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Outfit' } } } } }
+        });
+    }
+
+    function refreshStaticData() {
+        const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; const os = db.dir.filter(d=>d.type==='o').map(d=>d.name).sort();
+        const dashMem = document.getElementById('dashMemSelect').value; const compMem = document.getElementById('compMemSelect').value;
+        document.getElementById('dashMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+        document.getElementById('dashMemSelect').value = dashMem || "Band Payment";
+        document.getElementById('compMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+        document.getElementById('compMemSelect').value = compMem || "Band Payment";
+        document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
+        document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
+        if(db.logo) { const lp = document.getElementById('logoPreview'); const hl = document.getElementById('headerLogo'); lp.src = db.logo; lp.style.display = 'block'; hl.src = db.logo; hl.style.display = 'block'; }
+    }
+
+    function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
+    
+    function populateFilters(m, y, a=true) { 
+        document.getElementById(m).innerHTML = (a?'<option value="all">All Months</option>':'')+months.map((x,i)=>`<option value="${i}">${x.substring(0,3)}</option>`).join(''); 
+        const yrs=[2023,2024,2025,2026,2027,2028]; 
+        let yOpts = yrs.map(v=>`<option value="${v}">${v}</option>`).join('');
+        if(y === 'histYear') { yOpts = '<option value="lifetime">Lifetime</option>' + yOpts; }
+        document.getElementById(y).innerHTML = yOpts; 
+    }
+
+    function addDirectory() { const v=document.getElementById('dirInput').value, t=document.getElementById('dirType').value; if(v){ db.dir.push({name:v, type:t}); saveDB(); document.getElementById('dirInput').value=""; } }
+    function delDir(i) { db.dir.splice(i,1); saveDB(); }
+
+    function addRow(p='') { 
+        const d=document.createElement('div'); d.className='payout-row'; d.style.marginBottom = "10px";
+        d.innerHTML=`<input class="pn" list="memDList" placeholder="Name" value="${p}"><div style="display:flex; gap:5px;"><input type="number" class="pa" placeholder="₹"><select class="pm"><option value="Cash">Cash</option><option value="Online">Online</option></select></div><input type="text" class="pnote" placeholder="Payment Note/Txn ID" style="margin-top:5px;"><button onclick="this.parentElement.remove()" style="color:var(--danger); background:none; border:none; float:right; font-size:18px;">×</button><div style="clear:both"></div>`; 
+        document.getElementById('payoutArea').appendChild(d); 
+    }
+
+    function saveShow() { 
+        const v=document.getElementById('vName').value; if(!v) return notify("Venue required","danger"); 
+        const pA=[]; document.querySelectorAll('.payout-row').forEach(r=>{ const n=r.querySelector('.pn').value; if(n) pA.push({ name:n, amt:parseFloat(r.querySelector('.pa').value||0), mode:r.querySelector('.pm').value, note:r.querySelector('.pnote').value||'' }); }); 
+        const id=document.getElementById('editId').value; 
+        const g={ id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), note: document.getElementById('gNote').value, payouts: pA }; 
+        if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
+        saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
+    }
+
+    function renderHistory() { 
+        const fM = document.getElementById('histMonth').value; const fY = document.getElementById('histYear').value; const q = document.getElementById('histSearch').value.toLowerCase().trim();
+        const list = db.shows.filter(s => { const d = new Date(s.date); let dateMatch = false; if(fY === 'lifetime') { dateMatch = true; } else { dateMatch = d.getFullYear().toString() === fY && (fM === 'all' || d.getMonth().toString() === fM); } if(!dateMatch) return false; if(!q) return true; const searchStr = `${s.venue} ${s.org} ${formatD(s.date)} ${s.deal}`.toLowerCase(); return searchStr.includes(q); }).sort((a,b)=>new Date(b.date)-new Date(a.date)); 
+        document.getElementById('hList').innerHTML = list.map(s => `<div class="glass-card" style="border-left:4px solid var(--accent);" onclick="viewGigDetails(${s.id})"><strong>${s.venue}</strong><br><small>${formatD(s.date)} | ${s.org}</small><br><span style="color:var(--success); font-weight:bold;">₹${s.deal}</span></div>`).join('') || '<p style="text-align:center; opacity:0.6;">No Data</p>'; 
+    }
+    
+    function viewGigDetails(id) { 
+        const s=db.shows.find(x=>x.id===id); 
+        const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
+        const memPayouts = s.payouts.filter(p => p.name !== "Band Payment"); const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
+        document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}<div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div><div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div><div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div><button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
+        document.getElementById('detailModal').style.display='flex'; 
+    }
+
+    function deleteGig(id) { if(confirm("Delete this Gig?")){ db.shows = db.shows.filter(s => s.id !== id); saveDB(); document.getElementById('detailModal').style.display='none'; renderHistory(); updateDash(); notify("Gig Deleted", "danger"); } }
+
+    function exportMemberPDF() {
+        const name = document.getElementById('memSelect').value; if(!name) return;
+        const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
+        const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
+        const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+        const data = []; db.shows.forEach(s => { const d = new Date(s.date); if(d >= start && d <= end){ s.payouts.forEach(p=>{if(p.name===name) data.push({date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
         
-        function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; 
-            const avgMode = document.getElementById('anaAvgMode').value;
-            const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; 
-            const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
-            db.shows.forEach(x=>{ const d=new Date(x.date); if(d >= s && d <= e && x.date < todayStr){ x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}}); } }); 
-            const mCount = getMonthDiff(s, e);
-            document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; document.getElementById('memAvgStats').innerText = getAvgDisplay(t, c, avgMode, mCount); 
-            if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6', borderRadius: 5 }]} }); 
+        const mCount = getMonthDiff(start, end);
+        exportReport("Performance", name, data, `${months[sm]} ${sy}`, `${months[em]} ${ey}`, mCount);
+    }
+    function viewBreakdown(type) {
+        const mem = document.getElementById('dashMemSelect').value; if(!mem) return;
+        const now = new Date(); let start, end, title, sl, el;
+        if(type==='lifetime'){ start=new Date(2000,0,1); end=new Date(2100,0,1); title="Lifetime"; sl="Start"; el="Current"; }
+        else if(type==='month'){ start=new Date(now.getFullYear(),now.getMonth(),1); end=new Date(now.getFullYear(),now.getMonth(),31); title="Monthly"; sl=months[now.getMonth()]+" "+now.getFullYear(); el=sl; }
+        else if(type==='year'){ start=new Date(now.getFullYear(),0,1); end=new Date(now.getFullYear(),11,31); title="Yearly"; sl="Jan "+now.getFullYear(); el="Dec "+now.getFullYear(); }
+        else { 
+            const sm = parseInt(document.getElementById('dashStartMonth').value); const sy = parseInt(document.getElementById('dashStartYear').value);
+            const em = parseInt(document.getElementById('dashEndMonth').value); const ey = parseInt(document.getElementById('dashEndYear').value);
+            start = new Date(sy, sm, 1); end = new Date(ey, em, 31); title="Custom Period"; sl = `${months[sm]} ${sy}`; el = `${months[em]} ${ey}`;
         }
-        
-        function runOrgAnalysis() {
-            const avgMode = document.getElementById('anaAvgMode').value;
-            const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value;
-            const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value;
-            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-            const om={}; let tr=0, tg=0; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
-            db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=start && d <= end && x.date < todayStr){ if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0; let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || ''; om[x.org].r+=x.deal; om[x.org].c++; om[x.org].list.push({id: x.id, date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn}); tr+=x.deal; tg++; } });
-            const mCount = getMonthDiff(start, end);
-            document.getElementById('orgSection').style.display='block'; document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`; document.getElementById('orgAvgStats').innerText = getAvgDisplay(tr, tg, avgMode, mCount);
-            const sortedOrgs = Object.keys(om).sort((a,b)=>om[b].r - om[a].r); 
-            const dynamicColors = sortedOrgs.map((_, i) => { const hue = (i * 137.508) % 360; return `hsl(${hue}, 70%, 50%)`; });
-            if(oChart) oChart.destroy(); oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: sortedOrgs, datasets: [{ data: sortedOrgs.map(k => om[k].r), backgroundColor: dynamicColors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } }, onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = sortedOrgs[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } } } });
-            document.getElementById('orgDetailsList').innerHTML = sortedOrgs.map((l, i) => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; const color = dynamicColors[i]; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%; margin-right:8px; flex-shrink:0;"></span><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`; }).join('');
+        const data = []; db.shows.forEach(s => { if(new Date(s.date)>=start && new Date(s.date)<=end){ s.payouts.forEach(p=>{if(p.name===mem) data.push({id: s.id, date:s.date, venue:s.venue, org:s.org, amt:p.amt, note: p.note});}); } });
+        renderBreakdownModal(title, mem, data, sl, el);
+    }
+    function renderBreakdownModal(title, entity, data, sl, el) {
+        let html = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3>${title}</h3><p>${entity}</p><div style="margin-top:15px; border-top:1px solid var(--border)">`;
+        let t = 0; data.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(i => { t += i.amt; 
+            const clk = i.id ? `onclick="viewGigDetails(${i.id})"` : ''; const cursorStyle = i.id ? 'cursor:pointer;' : '';
+            html += `<div class="bk-row" ${clk} style="${cursorStyle}"><div><strong>${i.venue}</strong><br><small>${formatD(i.date)} | ${i.org}</small>${i.note ? `<br><small style="font-style:italic">Note: ${i.note}</small>` : ''}</div><strong>₹${i.amt.toLocaleString()}</strong></div>`; 
+        });
+        html += `<div style="display:flex; justify-content:space-between; padding:15px 0; color:var(--accent);"><strong>TOTAL</strong><strong>₹${t.toLocaleString()}</strong></div></div><button class="btn-main" id="dlBreakdownPdf">DOWNLOAD PDF</button>`;
+        document.getElementById('modalBody').innerHTML = html; document.getElementById('detailModal').style.display = 'flex';
+        document.getElementById('dlBreakdownPdf').onclick = () => exportReport(title, entity, data, sl, el, 1);
+    }
+    function toggleAnalysisMode() { const m = document.getElementById('analysisType').value; document.getElementById('memberSection').style.display=m==='member'?'block':'none'; document.getElementById('orgSection').style.display=m==='organizer'?'block':'none'; if(m==='member'){ const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; document.getElementById('memSelect').innerHTML = '<option value="">Select Member</option>' + ms.map(n => `<option value="${n}">${n}</option>`).join(''); } triggerAnalysis(); }
+    function triggerAnalysis() { const mode = document.getElementById('analysisType').value; if(mode === 'member') runMemberAnalysis(); else runOrgAnalysis(); }
+    
+    function runMemberAnalysis() { const n = document.getElementById('memSelect').value; if(!n) return; 
+        const avgMode = document.getElementById('anaAvgMode').value;
+        const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value; const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value; 
+        const s = new Date(sy, sm, 1); const e = new Date(ey, em, 31); let t=0, c=0; const cd={}; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
+        db.shows.forEach(x=>{ const d=new Date(x.date); if(d >= s && d <= e && x.date < todayStr){ x.payouts.forEach(p=>{if(p.name===n){t+=p.amt; c++; const k=months[d.getMonth()].substring(0,3); cd[k]=(cd[k]||0)+p.amt;}}); } }); 
+        const mCount = getMonthDiff(s, e);
+        document.getElementById('memStats').style.display='block'; document.getElementById('totalSelectedVal').innerText=`₹${t.toLocaleString()}`; document.getElementById('totalSelectedShow').innerText=`${c} Shows`; document.getElementById('memAvgStats').innerText = getAvgDisplay(t, c, avgMode, mCount); 
+        if(mChart) mChart.destroy(); mChart = new Chart(document.getElementById('memChart'), { type: 'bar', data: { labels: Object.keys(cd), datasets: [{ label: 'Income', data: Object.values(cd), backgroundColor: '#8b5cf6', borderRadius: 5 }]} }); 
+    }
+    
+    function runOrgAnalysis() {
+        const avgMode = document.getElementById('anaAvgMode').value;
+        const sm = document.getElementById('anaStartMonth').value; const sy = document.getElementById('anaStartYear').value;
+        const em = document.getElementById('anaEndMonth').value; const ey = document.getElementById('anaEndYear').value;
+        const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+        const om={}; let tr=0, tg=0; const now = new Date(); const todayStr = new Date().toLocaleDateString('en-CA');
+        db.shows.forEach(x=>{ const d=new Date(x.date); if(d>=start && d <= end && x.date < todayStr){ if(!om[x.org]) om[x.org]={r:0, c:0, list:[]}; let bp = x.payouts.find(p=>p.name==="Band Payment")?.amt || 0; let bn = x.payouts.find(p=>p.name==="Band Payment")?.note || ''; om[x.org].r+=x.deal; om[x.org].c++; om[x.org].list.push({id: x.id, date: x.date, venue: x.venue, org: x.org, amt: bp, note: bn}); tr+=x.deal; tg++; } });
+        const mCount = getMonthDiff(start, end);
+        document.getElementById('orgSection').style.display='block'; document.getElementById('orgPeriodTotal').innerText=`₹${tr.toLocaleString()}`; document.getElementById('orgPeriodGigs').innerText=`${tg} Shows`; document.getElementById('orgAvgStats').innerText = getAvgDisplay(tr, tg, avgMode, mCount);
+        const sortedOrgs = Object.keys(om).sort((a,b)=>om[b].r - om[a].r); 
+        const dynamicColors = sortedOrgs.map((_, i) => { const hue = (i * 137.508) % 360; return `hsl(${hue}, 70%, 50%)`; });
+        if(oChart) oChart.destroy(); oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: sortedOrgs, datasets: [{ data: sortedOrgs.map(k => om[k].r), backgroundColor: dynamicColors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } }, onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = sortedOrgs[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } } } });
+        document.getElementById('orgDetailsList').innerHTML = sortedOrgs.map((l, i) => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; const color = dynamicColors[i]; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%; margin-right:8px; flex-shrink:0;"></span><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`; }).join('');
+    }
+    function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('gNote').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
+    function editGig(id) { 
+        const s=db.shows.find(x=>x.id==id); document.getElementById('detailModal').style.display='none'; document.getElementById('editId').value=s.id; document.getElementById('vName').value=s.venue; document.getElementById('orgName').value=s.org; document.getElementById('gDate').value=s.date; document.getElementById('gDeal').value=s.deal; document.getElementById('gNote').value=s.note || ''; document.getElementById('payoutArea').innerHTML=''; s.payouts.forEach(p=>{ addRow(p.name); const r=document.querySelector('#payoutArea .payout-row:last-child'); r.querySelector('.pa').value=p.amt; r.querySelector('.pm').value=p.mode; r.querySelector('.pnote').value=p.note || ''; }); document.getElementById('formTitle').innerText="Edit Gig"; document.getElementById('cancelBtn').style.display='block'; showPage('add'); 
+    }
+    async function runExport() { const ds=JSON.stringify(db, null, 2); const dateStr = new Date().toISOString().split('T')[0]; const fName = `Band_Backup_${dateStr}.json`; if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({ suggestedName: fName, types:[{description:'JSON', accept:{'application/json':['.json']}}] }); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success"); }catch(e){} } else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=fName; a.click(); } }
+    function handleImport(e) { const r = new FileReader(); r.onload = (x) => { try { db = JSON.parse(x.target.result); saveDB(); notify("Sync Success", "success"); setTimeout(() => location.reload(), 1000); } catch(err) { notify("Error", "danger"); } }; r.readAsText(e.target.files[0]); }
+    function runReset() { if(confirm("Erase all data?")){ indexedDB.deleteDatabase("DotxBandDB"); notify("Wiped", "danger"); setTimeout(()=>location.reload(), 1000); } }
+    function handleLogo(e) { 
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // আমরা সাইজ ফিক্স করে দিচ্ছি সর্বোচ্চ 120px
+                const maxWidth = 120;
+                const scaleSize = maxWidth / img.width;
+                const newWidth = maxWidth;
+                const newHeight = img.height * scaleSize;
+
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+                // কোয়ালিটি কমিয়ে (0.7) JPEG বা PNG তে কনভার্ট
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                
+                db.logo = dataUrl;
+                saveDB();
+                notify("Logo Optimized & Saved", "success");
+            }
+            img.src = event.target.result;
         }
-        function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('gNote').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
-        function editGig(id) { 
-            const s=db.shows.find(x=>x.id==id); document.getElementById('detailModal').style.display='none'; document.getElementById('editId').value=s.id; document.getElementById('vName').value=s.venue; document.getElementById('orgName').value=s.org; document.getElementById('gDate').value=s.date; document.getElementById('gDeal').value=s.deal; document.getElementById('gNote').value=s.note || ''; document.getElementById('payoutArea').innerHTML=''; s.payouts.forEach(p=>{ addRow(p.name); const r=document.querySelector('#payoutArea .payout-row:last-child'); r.querySelector('.pa').value=p.amt; r.querySelector('.pm').value=p.mode; r.querySelector('.pnote').value=p.note || ''; }); document.getElementById('formTitle').innerText="Edit Gig"; document.getElementById('cancelBtn').style.display='block'; showPage('add'); 
-        }
-        async function runExport() { const ds=JSON.stringify(db, null, 2); const dateStr = new Date().toISOString().split('T')[0]; const fName = `Band_Backup_${dateStr}.json`; if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({ suggestedName: fName, types:[{description:'JSON', accept:{'application/json':['.json']}}] }); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success"); }catch(e){} } else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=fName; a.click(); } }
-        function handleImport(e) { const r = new FileReader(); r.onload = (x) => { try { db = JSON.parse(x.target.result); saveDB(); notify("Sync Success", "success"); setTimeout(() => location.reload(), 1000); } catch(err) { notify("Error", "danger"); } }; r.readAsText(e.target.files[0]); }
-        function runReset() { if(confirm("Erase all data?")){ indexedDB.deleteDatabase("DotxBandDB"); notify("Wiped", "danger"); setTimeout(()=>location.reload(), 1000); } }
-        function handleLogo(e) { const r = new FileReader(); r.onload = (ev) => { db.logo = ev.target.result; saveDB(); notify("Logo Saved", "success"); }; r.readAsDataURL(e.target.files[0]); }
-        function toggleTheme() { db.theme = db.theme === 'dark' ? 'light' : 'dark'; document.body.setAttribute('data-theme', db.theme); saveDB(); notify("Theme Updated"); }
-        function closeDetailIfOutside(e) { if(e.target.id === 'detailModal') e.target.style.display = 'none'; }
-        function addFooter(doc) { const pc = doc.internal.getNumberOfPages(); doc.setFontSize(8); doc.setTextColor(150); for(let i=1; i<=pc; i++) { doc.setPage(i); doc.text("Generated by Dotx Band Data Manager", 105, 285, {align: 'center'}); } }
+        reader.readAsDataURL(file);
+    }
+    // Theme toggle
+    function toggleTheme() { db.theme = db.theme === 'dark' ? 'light' : 'dark'; document.body.setAttribute('data-theme', db.theme); saveDB(); notify("Theme Updated"); }
+    
+    function closeDetailIfOutside(e) { if(e.target.id === 'detailModal') e.target.style.display = 'none'; }
+    function addFooter(doc) { const pc = doc.internal.getNumberOfPages(); doc.setFontSize(8); doc.setTextColor(150); for(let i=1; i<=pc; i++) { doc.setPage(i); doc.text("Generated by Dotx Band Data Manager", 105, 285, {align: 'center'}); } }
     </script>
 </body>
 </html>
