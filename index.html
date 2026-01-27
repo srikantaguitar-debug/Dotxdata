@@ -149,6 +149,19 @@
         </div>
     </div>
 
+    <div id="confirmModal" class="modal" style="z-index:99999;">
+        <div class="modal-content" style="max-width:320px;">
+            <div style="font-size:40px; margin-bottom:10px;">🤔</div>
+            <h3 id="confTitle" style="margin:0 0 10px 0; color:var(--text);">Are you sure?</h3>
+            <p id="confMsg" style="color:var(--dim); font-size:14px; margin-bottom:25px;">Do you really want to proceed?</p>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="btn-main" onclick="closeConfirmModal()" style="background:var(--bg); color:var(--text); border:1px solid var(--border); margin-top:0;">CANCEL</button>
+                <button id="btnConfYes" class="btn-main" style="background:var(--grad-3); margin-top:0; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);">YES, DO IT</button>
+            </div>
+        </div>
+    </div>
+
     <div id="pinModal" class="modal">
         <div class="modal-content">
             <span class="close-x" onclick="closePinModal()">×</span>
@@ -162,12 +175,6 @@
             </div>
         </div>
     </div>
-
-    <header>
-        <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
-            <img id="headerLogo" src="" style="display:none; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-            <h3 style="margin:0; color:white; font-size: 16px; letter-spacing: 0.5px; font-weight: 800;">Dotx Band Manager</h3>
-        </div>
     </header>
 
     <div class="nav">
@@ -371,8 +378,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-    <script>
-        if ('serviceWorker' in navigator) {
+<script>
+    if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Failed', err));
         });
@@ -380,20 +387,18 @@
 
     // --- 1. FIREBASE CONFIGURATION ---
     const firebaseConfig = {
-      apiKey: "AIzaSyCnUlbaLG34IMzcISoHotyuaM5fFKao--4",
-      authDomain: "dotx-band-management.firebaseapp.com",
-      projectId: "dotx-band-management",
-      storageBucket: "dotx-band-management.firebasestorage.app",
-      messagingSenderId: "774226084851",
-      appId: "1:774226084851:web:7cf76979e245be35c0c886"
+        apiKey: "AIzaSyCnUlbaLG34IMzcISoHotyuaM5fFKao--4",
+        authDomain: "dotx-band-management.firebaseapp.com",
+        projectId: "dotx-band-management",
+        storageBucket: "dotx-band-management.firebasestorage.app",
+        messagingSenderId: "774226084851",
+        appId: "1:774226084851:web:7cf76979e245be35c0c886"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const dbStore = firebase.firestore();
 
-    // Offline Persistence (অফলাইনে কাজ করার জন্য)
     dbStore.enablePersistence({synchronizeTabs:true}).catch((err) => {
         console.log("Persistence Error:", err.code);
     });
@@ -402,53 +407,70 @@
     const { jsPDF } = window.jspdf;
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
-    // ডিফল্ট ডেটাবেস স্ট্রাকচার
     let db = { shows: [], theme: 'light', logo: '', pin: '1234', dir: [], state: {} };
-    
+    let pendingAction = null; 
     let inputPin = "", actionPin = "", currentAction = null, mChart = null, oChart = null, dashLineChart = null;
     let compData = {}; 
     let currentUser = null;
     let unsubscribeSnapshot = null;
-
+    
     // --- 2. STARTUP LOGIC ---
     function initApp() { 
-        // IndexedDB কানেকশন রাখা হলো ব্যাকআপ হিসেবে (লোকাল লোডিং ফাস্ট করার জন্য)
         const dbRequest = indexedDB.open("DotxBandDB", 1);
-        dbRequest.onupgradeneeded = e => e.target.result.createObjectStore("settings");
+
+        dbRequest.onupgradeneeded = e => {
+            if(!e.target.result.objectStoreNames.contains("settings")){
+                e.target.result.createObjectStore("settings");
+            }
+        };
+
         dbRequest.onsuccess = e => {
             const idb = e.target.result;
-            idb.transaction("settings", "readonly").objectStore("settings").get("data").onsuccess = ev => {
+            const tx = idb.transaction("settings", "readonly");
+            const store = tx.objectStore("settings");
+            
+            store.get("data").onsuccess = ev => {
                 if(ev.target.result) {
-                    db = ev.target.result; // প্রথমে লোকাল ডেটা লোড করো
-                    refreshStaticData(); // UI আপডেট করো
+                    db = ev.target.result;
+                    
+                    if(db.theme) {
+                        document.body.setAttribute('data-theme', db.theme);
+                    }
+                    
+                    refreshStaticData();
+                    
+                    if (db.state) {
+                        Object.keys(db.state).forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el && el.tagName === 'SELECT') el.value = db.state[id];
+                        });
+                    }
+                    updateDash();
                 }
             };
         };
 
-        // Auth Listener: চেক করবে ইউজার লগইন আছে কিনা
         auth.onAuthStateChanged((user) => {
             if (user) {
-                // ইউজার লগইন আছে
                 currentUser = user;
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('lockScreen').style.display = 'flex'; 
                 if(document.getElementById('loggedInEmail')) {
                     document.getElementById('loggedInEmail').innerText = "👤 " + user.email;
                 }
-                // পিন স্ক্রিন দেখাও
-                syncData(); // সার্ভারের সাথে সিঙ্ক শুরু করো
+                syncData(); 
             } else {
-                // ইউজার লগইন নেই
                 currentUser = null;
                 document.getElementById('lockScreen').style.display = 'none';
-                document.getElementById('authScreen').style.display = 'flex'; // লগইন স্ক্রিন দেখাও
+                document.getElementById('authScreen').style.display = 'flex'; 
             }
         });
 
-        document.body.setAttribute('data-theme', db.theme); 
         setupDefaultDates();
         
-        // Select Inputs Listener
+        // ** NEW: Start with fresh form and current date **
+        resetForm();
+
         document.querySelectorAll('select').forEach(el => {
             el.addEventListener('change', () => {
                 if (!db.state) db.state = {};
@@ -459,16 +481,12 @@
     }
 
     // --- 3. SYNC & SAVE LOGIC ---
-    
-    // Cloud + Local Save
     function saveDB() { 
-        // 1. Save to Local IndexedDB (তাৎক্ষণিক সেভ)
         const req = indexedDB.open("DotxBandDB", 1);
         req.onsuccess = e => {
              e.target.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data");
         };
 
-        // 2. Save to Cloud (ব্যাকগ্রাউন্ডে ফায়ারবেসে পাঠাবে)
         if(currentUser) {
             dbStore.collection("users").doc(currentUser.uid).set(db, { merge: true })
             .catch(e => console.log("Cloud Save Error:", e));
@@ -477,7 +495,6 @@
         refreshStaticData(); 
     }
 
-    // Realtime Listener (ফায়ারবেস থেকে ডেটা নামাবে)
     function syncData() {
         if(!currentUser) return;
         const docRef = dbStore.collection("users").doc(currentUser.uid);
@@ -485,15 +502,13 @@
         unsubscribeSnapshot = docRef.onSnapshot((doc) => {
             if (doc.exists) {
                 const cloudData = doc.data();
-                // ক্লাউড ডেটা লোকাল ভেরিয়েবলে মার্জ করা হচ্ছে
                 db = { ...db, ...cloudData }; 
                 refreshStaticData();
                 updateDash();
                 
-                // লোকাল স্টোরেজ আপডেট
                 const req = indexedDB.open("DotxBandDB", 1);
                 req.onsuccess = e => {
-                     e.target.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data");
+                      e.target.result.transaction("settings", "readwrite").objectStore("settings").put(db, "data");
                 };
             }
         });
@@ -517,7 +532,6 @@
         if(!e || !p) return notify("Enter Email & Password", "warning");
         document.getElementById('authLoader').style.display = 'block';
         auth.createUserWithEmailAndPassword(e, p).then(() => {
-            // নতুন ইউজারের জন্য বর্তমান ডেটা সেভ করা হচ্ছে
             saveDB();
         }).catch(err => {
             document.getElementById('authLoader').style.display = 'none';
@@ -526,14 +540,25 @@
     }
     
     function handleLogout() {
-        if(confirm("Logout? You need internet to login again.")) {
+        showCustomConfirm("You will be logged out. Internet is required to log in again.", () => {
             if(unsubscribeSnapshot) unsubscribeSnapshot();
             auth.signOut().then(() => location.reload());
-        }
+        });
     }
 
-    // --- 4. IMAGE COMPRESSION (NEW) ---
-    // লোগো খুব ছোট সাইজে সেভ করার ফাংশন
+    function runReset() { 
+        showCustomConfirm("Warning! This will verify PIN and DELETE ALL DATA permanently.", () => {
+             secureAction('reset'); 
+        });
+    }
+    
+    function performWipe() {
+         indexedDB.deleteDatabase("DotxBandDB"); 
+         notify("Wiped Successfully", "danger"); 
+         setTimeout(()=>location.reload(), 1000);
+    }
+
+    // --- IMAGE COMPRESSION ---
     function handleLogo(e) { 
         const file = e.target.files[0];
         if(!file) return;
@@ -544,8 +569,6 @@
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                
-                // আমরা সাইজ ফিক্স করে দিচ্ছি সর্বোচ্চ 100px (খুবই ছোট)
                 const maxWidth = 100; 
                 const scaleSize = maxWidth / img.width;
                 const newWidth = maxWidth;
@@ -555,11 +578,10 @@
                 canvas.height = newHeight;
                 ctx.drawImage(img, 0, 0, newWidth, newHeight);
 
-                // কোয়ালিটি কমিয়ে (0.6) JPEG তে কনভার্ট (সাইজ ৫-১০ কেবি হবে)
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                 
                 db.logo = dataUrl;
-                saveDB(); // ক্লাউডে সেভ হবে
+                saveDB(); 
                 notify("Logo Optimized & Saved", "success");
             }
             img.src = event.target.result;
@@ -602,7 +624,6 @@
         mFilters.forEach((id, idx) => populateFilters(id, yFilters[idx], id === 'histMonth'));
         populateChartYearSelectors(cy);
         
-        // Safety checks if elements exist
         if(document.getElementById('dashStartMonth')) {
             ['dashStartMonth', 'anaStartMonth'].forEach(id => document.getElementById(id).value = 8);
             ['dashEndMonth', 'anaEndMonth'].forEach(id => document.getElementById(id).value = 7);
@@ -640,7 +661,6 @@
             if(inputPin === db.pin) { 
                 document.getElementById('lockScreen').style.display='none'; 
                 inputPin=""; 
-                // Restore state selects
                 if (db.state) {
                     Object.keys(db.state).forEach(id => {
                         const el = document.getElementById(id);
@@ -657,7 +677,8 @@
     function pressActionNum(n) {
         if(n === 'B') actionPin = actionPin.slice(0, -1); else if(actionPin.length < 4) actionPin += n;
         const d = document.getElementById('actionDots').children; for(let i=0; i<4; i++) d[i].className = i < actionPin.length ? 'dot active' : 'dot';
-        if(actionPin.length === 4) { if(actionPin === db.pin) { const act = currentAction; closePinModal(); setTimeout(() => { if(act==='export') runExport(); if(act==='import') document.getElementById('inFile').click(); if(act==='reset') runReset(); }, 100); } else { notify("Wrong PIN","danger"); actionPin=""; resetDots('actionDots'); } }
+        if(actionPin.length === 4) { if(actionPin === db.pin) { const act = currentAction; closePinModal(); setTimeout(() => { if(act==='export') runExport(); if(act==='import') document.getElementById('inFile').click(); 
+if(act==='reset') performWipe(); }, 100); } else { notify("Wrong PIN","danger"); actionPin=""; resetDots('actionDots'); } }
     }
     function resetDots(id) { const d = document.getElementById(id).children; for(let i=0; i<4; i++) d[i].className = 'dot'; }
     function secureAction(a) { currentAction = a; actionPin = ""; resetDots('actionDots'); document.getElementById('pinModal').style.display = 'flex'; }
@@ -965,7 +986,7 @@
         document.getElementById('compMemSelect').value = compMem || "Band Payment";
         document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
         document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
-        if(db.logo) { const lp = document.getElementById('logoPreview'); const hl = document.getElementById('headerLogo'); lp.src = db.logo; lp.style.display = 'block'; hl.src = db.logo; hl.style.display = 'block'; }
+        if(db.logo) { const lp = document.getElementById('logoPreview'); lp.src = db.logo; lp.style.display = 'block'; }
     }
 
     function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
@@ -987,13 +1008,77 @@
         document.getElementById('payoutArea').appendChild(d); 
     }
 
+    // --- SAVE SHOW FUNCTION (UPDATED) ---
     function saveShow() { 
-        const v=document.getElementById('vName').value; if(!v) return notify("Venue required","danger"); 
-        const pA=[]; document.querySelectorAll('.payout-row').forEach(r=>{ const n=r.querySelector('.pn').value; if(n) pA.push({ name:n, amt:parseFloat(r.querySelector('.pa').value||0), mode:r.querySelector('.pm').value, note:r.querySelector('.pnote').value||'' }); }); 
-        const id=document.getElementById('editId').value; 
-        const g={ id:id?parseInt(id):Date.now(), venue:v, org:document.getElementById('orgName').value, date:document.getElementById('gDate').value, deal:parseFloat(document.getElementById('gDeal').value||0), note: document.getElementById('gNote').value, payouts: pA }; 
-        if(id) db.shows=db.shows.map(s=>s.id==id?g:s); else db.shows.push(g); 
-        saveDB(); resetForm(); notify("Gig Saved","success"); showPage('history'); 
+        try {
+            const v = document.getElementById('vName').value; 
+            if(!v) return notify("Venue name is required! ⚠️", "warning"); 
+            
+            const pA=[]; 
+            document.querySelectorAll('.payout-row').forEach(r=>{ 
+                const n=r.querySelector('.pn').value; 
+                if(n) pA.push({ name:n, amt:parseFloat(r.querySelector('.pa').value||0), mode:r.querySelector('.pm').value, note:r.querySelector('.pnote').value||'' }); 
+            }); 
+            
+            const id = document.getElementById('editId').value; 
+            const g = { 
+                id: id ? parseInt(id) : Date.now(), 
+                venue: v, 
+                org: document.getElementById('orgName').value, 
+                date: document.getElementById('gDate').value, 
+                deal: parseFloat(document.getElementById('gDeal').value||0), 
+                note: document.getElementById('gNote').value, 
+                payouts: pA 
+            }; 
+            
+            if(id) db.shows = db.shows.map(s => s.id == id ? g : s); 
+            else db.shows.push(g); 
+            
+            saveDB(); 
+            resetForm(); // ** Resets inputs & sets date to today **
+            
+            if(id) notify("Gig Updated Successfully! ✅", "success");
+            else notify("New Gig Added! 🎉", "success");
+            
+            showPage('history'); // ** Automatically go to history **
+            
+        } catch(e) {
+            console.error(e);
+            notify("Saved, but encountered an error", "warning");
+        }
+    }
+
+    // --- DELETE FUNCTION (UPDATED) ---
+    function deleteGig(id) { 
+        document.getElementById('detailModal').style.display = 'none';
+
+        showCustomConfirm("Delete this gig permanently?", function() {
+            db.shows = db.shows.filter(s => s.id !== id);
+            saveDB();
+            renderHistory(); // Refresh List
+            updateDash();    // Refresh Dashboard
+            notify("Gig Deleted Successfully 🗑️", "danger");
+        });
+    }
+
+    // --- CONFIRMATION LOGIC ---
+    function showCustomConfirm(msg, callback) {
+        document.getElementById('confMsg').innerText = msg;
+        pendingAction = callback;
+        const oldBtn = document.getElementById('btnConfYes');
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        newBtn.onclick = function() {
+            document.getElementById('confirmModal').style.display = 'none';
+            if (pendingAction) pendingAction();
+            pendingAction = null;
+        };
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+        pendingAction = null;
     }
 
     function renderHistory() { 
@@ -1009,8 +1094,6 @@
         document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}<div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div><div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div><div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div><button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
         document.getElementById('detailModal').style.display='flex'; 
     }
-
-    function deleteGig(id) { if(confirm("Delete this Gig?")){ db.shows = db.shows.filter(s => s.id !== id); saveDB(); document.getElementById('detailModal').style.display='none'; renderHistory(); updateDash(); notify("Gig Deleted", "danger"); } }
 
     function exportMemberPDF() {
         const name = document.getElementById('memSelect').value; if(!name) return;
@@ -1073,50 +1156,63 @@
         if(oChart) oChart.destroy(); oChart = new Chart(document.getElementById('orgChart'), { type: 'doughnut', data: { labels: sortedOrgs, datasets: [{ data: sortedOrgs.map(k => om[k].r), backgroundColor: dynamicColors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${om[ctx.label].c} Gigs (₹${ctx.raw.toLocaleString()})` } } }, onClick: (evt, elements) => { if (elements.length > 0) { const i = elements[0].index; const label = sortedOrgs[i]; renderBreakdownModal(label + " Gigs", "Band Payment Info", om[label].list, months[sm]+" "+sy, months[em]+" "+ey); } } } });
         document.getElementById('orgDetailsList').innerHTML = sortedOrgs.map((l, i) => { const sL = months[sm]+" "+sy; const eL = months[em]+" "+ey; const perc = tr > 0 ? ((om[l].r / tr) * 100).toFixed(1) : 0; const color = dynamicColors[i]; return `<div class="bk-row" onclick='renderBreakdownModal("${l} Details", "Band Payment Info", ${JSON.stringify(om[l].list).replace(/'/g, "&apos;")}, "${sL}", "${eL}")'><div style="display:flex; align-items:center;"><span style="display:inline-block; width:10px; height:10px; background:${color}; border-radius:50%; margin-right:8px; flex-shrink:0;"></span><div><strong>${l}</strong> (${perc}%)<br><small>${om[l].c} Shows</small></div></div><strong>₹${om[l].r.toLocaleString()}</strong></div>`; }).join('');
     }
-    function resetForm() { document.getElementById('editId').value=''; document.getElementById('vName').value=''; document.getElementById('orgName').value=''; document.getElementById('gNote').value=''; document.getElementById('payoutArea').innerHTML=''; document.getElementById('formTitle').innerText="Gig Entry"; document.getElementById('cancelBtn').style.display='none'; }
+
+    function resetForm() { 
+    document.getElementById('editId').value=''; 
+    document.getElementById('vName').value=''; 
+    document.getElementById('orgName').value=''; 
+    
+    // এই লাইনটি আগে মিসিং ছিল, তাই টাকা থেকে যাচ্ছিল
+    document.getElementById('gDeal').value=''; 
+    
+    document.getElementById('gNote').value=''; 
+    document.getElementById('payoutArea').innerHTML=''; 
+    document.getElementById('formTitle').innerText="Gig Entry"; 
+    document.getElementById('cancelBtn').style.display='none';
+    
+    // ডিফল্ট হিসেবে আজকের তারিখ সেট করা
+    document.getElementById('gDate').value = new Date().toISOString().split('T')[0];
+}
+
     function editGig(id) { 
         const s=db.shows.find(x=>x.id==id); document.getElementById('detailModal').style.display='none'; document.getElementById('editId').value=s.id; document.getElementById('vName').value=s.venue; document.getElementById('orgName').value=s.org; document.getElementById('gDate').value=s.date; document.getElementById('gDeal').value=s.deal; document.getElementById('gNote').value=s.note || ''; document.getElementById('payoutArea').innerHTML=''; s.payouts.forEach(p=>{ addRow(p.name); const r=document.querySelector('#payoutArea .payout-row:last-child'); r.querySelector('.pa').value=p.amt; r.querySelector('.pm').value=p.mode; r.querySelector('.pnote').value=p.note || ''; }); document.getElementById('formTitle').innerText="Edit Gig"; document.getElementById('cancelBtn').style.display='block'; showPage('add'); 
     }
     async function runExport() { const ds=JSON.stringify(db, null, 2); const dateStr = new Date().toISOString().split('T')[0]; const fName = `Band_Backup_${dateStr}.json`; if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({ suggestedName: fName, types:[{description:'JSON', accept:{'application/json':['.json']}}] }); const w=await h.createWritable(); await w.write(ds); await w.close(); notify("Saved","success"); }catch(e){} } else { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ds],{type:'application/json'})); a.download=fName; a.click(); } }
-    function handleImport(e) { const r = new FileReader(); r.onload = (x) => { try { db = JSON.parse(x.target.result); saveDB(); notify("Sync Success", "success"); setTimeout(() => location.reload(), 1000); } catch(err) { notify("Error", "danger"); } }; r.readAsText(e.target.files[0]); }
-    function runReset() { if(confirm("Erase all data?")){ indexedDB.deleteDatabase("DotxBandDB"); notify("Wiped", "danger"); setTimeout(()=>location.reload(), 1000); } }
-    function handleLogo(e) { 
-        const file = e.target.files[0];
-        if(!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // আমরা সাইজ ফিক্স করে দিচ্ছি সর্বোচ্চ 120px
-                const maxWidth = 120;
-                const scaleSize = maxWidth / img.width;
-                const newWidth = maxWidth;
-                const newHeight = img.height * scaleSize;
-
-                canvas.width = newWidth;
-                canvas.height = newHeight;
-                ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-                // কোয়ালিটি কমিয়ে (0.7) JPEG বা PNG তে কনভার্ট
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                
-                db.logo = dataUrl;
-                saveDB();
-                notify("Logo Optimized & Saved", "success");
-            }
-            img.src = event.target.result;
-        }
-        reader.readAsDataURL(file);
+    function handleImport(e) { 
+        const r = new FileReader(); 
+        r.onload = (x) => { 
+            try { 
+                db = JSON.parse(x.target.result); 
+                saveDB(); 
+                notify("Sync Success", "success"); 
+                setTimeout(() => location.reload(), 1000); 
+            } catch(err) { 
+                notify("Error", "danger"); 
+            } 
+        }; 
+        r.readAsText(e.target.files[0]); 
     }
-    // Theme toggle
-    function toggleTheme() { db.theme = db.theme === 'dark' ? 'light' : 'dark'; document.body.setAttribute('data-theme', db.theme); saveDB(); notify("Theme Updated"); }
+
+    function toggleTheme() { 
+        db.theme = db.theme === 'dark' ? 'light' : 'dark'; 
+        document.body.setAttribute('data-theme', db.theme); 
+        saveDB(); 
+        notify("Theme Updated"); 
+    }
     
-    function closeDetailIfOutside(e) { if(e.target.id === 'detailModal') e.target.style.display = 'none'; }
-    function addFooter(doc) { const pc = doc.internal.getNumberOfPages(); doc.setFontSize(8); doc.setTextColor(150); for(let i=1; i<=pc; i++) { doc.setPage(i); doc.text("Generated by Dotx Band Data Manager", 105, 285, {align: 'center'}); } }
-    </script>
+    function closeDetailIfOutside(e) { 
+        if(e.target.id === 'detailModal') e.target.style.display = 'none'; 
+    }
+
+    function addFooter(doc) { 
+        const pc = doc.internal.getNumberOfPages(); 
+        doc.setFontSize(8); 
+        doc.setTextColor(150); 
+        for(let i=1; i<=pc; i++) { 
+            doc.setPage(i); 
+            doc.text("Generated by Dotx Band Data Manager", 105, 285, {align: 'center'}); 
+        } 
+    }
+</script>
 </body>
 </html>
