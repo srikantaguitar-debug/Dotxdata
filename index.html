@@ -175,6 +175,13 @@
             </div>
         </div>
     </div>
+
+    <!-- এই সম্পূর্ণ Header কোডটি বসান -->
+    <header>
+        <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+            <img id="headerLogo" src="" style="display:none; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h3 style="margin:0; color:white; font-size: 16px; letter-spacing: 0.5px; font-weight: 800;">Dotx Band Manager</h3>
+        </div>
     </header>
 
     <div class="nav">
@@ -251,8 +258,9 @@
                 <textarea id="gNote" placeholder="General Gig Note (e.g. Sound check time, Advance info...)"></textarea>
                 <div id="payoutArea" style="margin-top:15px;"></div>
                 <div style="display:flex; gap:10px; margin-top:15px;">
-                    <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--grad); font-size:12px; margin-top:0;">+ Band Pay</button>
-                    <button type="button" onclick="addRow()" class="btn-main" style="background:var(--info); font-size:12px; margin-top:0;">+ Member</button>
+                    <button type="button" onclick="addRow('Band Payment')" class="btn-main" style="background:var(--grad); font-size:12px; margin-top:0; flex:1;">+ Band Pay</button>
+                    <button type="button" onclick="addRow('Tips')" class="btn-main" style="background:var(--warning); font-size:12px; margin-top:0; flex:1;">+ Tips</button>
+                    <button type="button" onclick="addRow()" class="btn-main" style="background:var(--info); font-size:12px; margin-top:0; flex:1;">+ Member</button>
                 </div>
                 <button class="btn-main" onclick="saveShow()" style="background:var(--success); margin-top:20px;">SAVE DATA</button>
                 <button class="btn-main" id="cancelBtn" style="display:none; background:var(--dim); margin-top:10px;" onclick="resetForm()">CANCEL</button>
@@ -719,86 +727,100 @@ if(act==='reset') performWipe(); }, 100); } else { notify("Wrong PIN","danger");
     }
 
     function exportOrgFullPDF() {
-        const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
-        const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
-        const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
-        const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){}
-        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Organizer Summary Report", 35, 18);
-        doc.setFontSize(10); doc.setTextColor(0);
-        doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
-        const orgMap = {}; let tI = 0, tS = 0, tB = 0;
-        const todayStr = new Date().toLocaleDateString('en-CA');
+            const sm = parseInt(document.getElementById('anaStartMonth').value); const sy = parseInt(document.getElementById('anaStartYear').value);
+            const em = parseInt(document.getElementById('anaEndMonth').value); const ey = parseInt(document.getElementById('anaEndYear').value);
+            const start = new Date(sy, sm, 1); const end = new Date(ey, em, 31);
+            const doc = new jsPDF(); if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){}
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text("Organizer Summary Report", 35, 18);
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`Period: ${months[sm]} ${sy} to ${months[em]} ${ey}`, 14, 30);
+            const orgMap = {}; let tI = 0, tS = 0, tB = 0, tTp = 0;
+            
+            const d = new Date();
+            const todayStr = new Date().toLocaleDateString('en-CA');
 
-        db.shows.forEach(x => { 
-            const d = new Date(x.date); 
-            if(d >= start && d <= end && x.date < todayStr) {
-                if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0 };
-                let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
-                orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp;
-                tI += x.deal; tS++; tB += bp;
-            }
-        });
-        const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
-        doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Total Deal']], body: rows, startY: 38 });
-        
-        const avgDeal = tS > 0 ? Math.round(tI / tS) : 0;
-        doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Deal: INR ${tI.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
-        doc.text(`Average Deal per Show: INR ${avgDeal.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 15);
-        
-        addFooter(doc); saveAsPDF(doc, `Org_Summary.pdf`);
-    }
-
-    function exportGigPDF(id) { 
-        const s = db.shows.find(x => x.id === id); 
-        const doc = new jsPDF(); 
-        if(db.logo) try { doc.addImage(db.logo, 'JPEG', 14, 10, 15, 15); } catch(e){} 
-        
-        doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(s.venue, 105, 20, {align: 'center'}); 
-        doc.setFontSize(11); doc.setTextColor(0);
-        doc.text(`${s.org} | ${formatD(s.date)}`, 105, 27, {align: 'center'});
-
-        doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-        doc.rect(20, 35, 80, 20, 'FD'); 
-        doc.setFontSize(10); doc.setTextColor(100);
-        doc.text("Total Deal", 60, 42, {align: 'center'});
-        doc.setFontSize(14); doc.setTextColor(16, 185, 129); 
-        doc.text(`INR ${s.deal.toLocaleString()}`, 60, 50, {align: 'center'});
-
-        const bpObj = s.payouts.find(p => p.name === "Band Payment");
-        const bpAmt = bpObj ? bpObj.amt : 0;
-        doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
-        doc.rect(110, 35, 80, 20, 'FD'); 
-        doc.setFontSize(10); doc.setTextColor(100);
-        doc.text("Band Payment", 150, 42, {align: 'center'});
-        doc.setFontSize(14); doc.setTextColor(139, 92, 246); 
-        doc.text(`INR ${bpAmt.toLocaleString()}`, 150, 50, {align: 'center'});
-
-        if(s.note) {
-            doc.setFontSize(10); doc.setTextColor(80);
-            doc.text(`Note: ${s.note}`, 14, 65);
+            db.shows.forEach(x => { 
+                const d = new Date(x.date); 
+                if(d >= start && d <= end && x.date < todayStr) {
+                    if(!orgMap[x.org]) orgMap[x.org] = { count: 0, deal: 0, bandPay: 0, tips: 0 };
+                    let bp = (x.payouts.find(p=>p.name==="Band Payment")?.amt || 0);
+                    let tp = (x.payouts.find(p=>p.name==="Tips")?.amt || 0);
+                    orgMap[x.org].count++; orgMap[x.org].deal += x.deal; orgMap[x.org].bandPay += bp; orgMap[x.org].tips += tp;
+                    tI += x.deal; tS++; tB += bp; tTp += tp;
+                }
+            });
+            const rows = Object.keys(orgMap).map(k => [k, orgMap[k].count, ((orgMap[k].deal/tI)*100).toFixed(1)+"%", `INR ${orgMap[k].bandPay.toLocaleString()}`, `INR ${orgMap[k].tips.toLocaleString()}`, `INR ${orgMap[k].deal.toLocaleString()}`]);
+            doc.autoTable({ head: [['Organizer', 'Gigs', '%', 'Band Pay', 'Tips', 'Total Deal']], body: rows, startY: 38 });
+            
+            const avgDeal = tS > 0 ? Math.round(tI / tS) : 0;
+            doc.text(`Total Gigs: ${tS} | Total BP: INR ${tB.toLocaleString()} | Total Tips: INR ${tTp.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 10);
+            doc.text(`Total Deal: INR ${tI.toLocaleString()} | Avg Deal/Show: INR ${avgDeal.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 15);
+            
+            addFooter(doc); saveAsPDF(doc, `Org_Summary.pdf`);
         }
 
-        const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment");
-        const memTotal = memberPayouts.reduce((a, b) => a + b.amt, 0);
+    function exportGigPDF(id) { 
+            const s = db.shows.find(x => x.id === id); 
+            const doc = new jsPDF(); 
+            if(db.logo) try { doc.addImage(db.logo, 'PNG', 14, 10, 15, 15); } catch(e){} 
+            
+            doc.setFontSize(16); doc.setTextColor(139, 92, 246); doc.text(s.venue, 105, 20, {align: 'center'}); 
+            doc.setFontSize(11); doc.setTextColor(0);
+            doc.text(`${s.org} | ${formatD(s.date)}`, 105, 27, {align: 'center'});
 
-        doc.autoTable({
-            head: [['Name', 'Amount', 'Mode', 'Note']], 
-            body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
-            startY: s.note ? 70 : 65,
-            headStyles: { fillColor: [220, 220, 220], textColor: 50, fontStyle: 'bold' },
-            theme: 'grid'
-        }); 
-        
-        const finalY = doc.lastAutoTable.finalY + 10;
-        doc.setFillColor(139, 92, 246); 
-        doc.rect(14, finalY, 182, 10, 'F');
-        doc.setTextColor(255); doc.setFontSize(11);
-        doc.text("Total Distributed", 20, finalY + 7);
-        doc.text(`INR ${memTotal.toLocaleString()}`, 190, finalY + 7, {align: 'right'});
+            const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
+            const tipsObj = s.payouts.find(p => p.name === "Tips"); const tipsAmt = tipsObj ? tipsObj.amt : 0;
 
-        addFooter(doc); 
-        saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
-    }
+            // Total Deal Box
+            doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
+            doc.rect(14, 35, 56, 20, 'FD'); 
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Total Deal", 42, 42, {align: 'center'});
+            doc.setFontSize(13); doc.setTextColor(16, 185, 129); 
+            doc.text(`INR ${s.deal.toLocaleString()}`, 42, 50, {align: 'center'});
+
+            // Band Payment Box
+            doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
+            doc.rect(75, 35, 56, 20, 'FD'); 
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Band Payment", 103, 42, {align: 'center'});
+            doc.setFontSize(13); doc.setTextColor(139, 92, 246); 
+            doc.text(`INR ${bpAmt.toLocaleString()}`, 103, 50, {align: 'center'});
+            
+            // Tips Box
+            doc.setDrawColor(200); doc.setFillColor(245, 247, 250); 
+            doc.rect(136, 35, 56, 20, 'FD'); 
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Tips", 164, 42, {align: 'center'});
+            doc.setFontSize(13); doc.setTextColor(245, 158, 11); 
+            doc.text(`INR ${tipsAmt.toLocaleString()}`, 164, 50, {align: 'center'});
+
+            if(s.note) {
+                doc.setFontSize(10); doc.setTextColor(80);
+                doc.text(`Note: ${s.note}`, 14, 65);
+            }
+
+            const memberPayouts = s.payouts.filter(p => p.name !== "Band Payment" && p.name !== "Tips");
+            const memTotal = memberPayouts.reduce((a, b) => a + b.amt, 0);
+
+            doc.autoTable({
+                head: [['Name', 'Amount', 'Mode', 'Note']], 
+                body: memberPayouts.map(p => [p.name, p.amt.toLocaleString(), p.mode, p.note || '-']), 
+                startY: s.note ? 70 : 65,
+                headStyles: { fillColor: [220, 220, 220], textColor: 50, fontStyle: 'bold' },
+                theme: 'grid'
+            }); 
+            
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFillColor(139, 92, 246); 
+            doc.rect(14, finalY, 182, 10, 'F');
+            doc.setTextColor(255); doc.setFontSize(11);
+            doc.text("Total Distributed", 20, finalY + 7);
+            doc.text(`INR ${memTotal.toLocaleString()}`, 190, finalY + 7, {align: 'right'});
+
+            addFooter(doc); 
+            saveAsPDF(doc, `Gig_${s.venue}.pdf`); 
+        }
 
     async function exportComparePDF() {
         const mem = document.getElementById('compMemSelect').value;
@@ -978,16 +1000,16 @@ if(act==='reset') performWipe(); }, 100); } else { notify("Wrong PIN","danger");
     }
 
     function refreshStaticData() {
-        const ms = ["Band Payment", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; const os = db.dir.filter(d=>d.type==='o').map(d=>d.name).sort();
-        const dashMem = document.getElementById('dashMemSelect').value; const compMem = document.getElementById('compMemSelect').value;
-        document.getElementById('dashMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
-        document.getElementById('dashMemSelect').value = dashMem || "Band Payment";
-        document.getElementById('compMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
-        document.getElementById('compMemSelect').value = compMem || "Band Payment";
-        document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
-        document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
-        if(db.logo) { const lp = document.getElementById('logoPreview'); lp.src = db.logo; lp.style.display = 'block'; }
-    }
+            const ms = ["Band Payment", "Tips", ...db.dir.filter(d=>d.type==='m').map(d=>d.name).sort()]; const os = db.dir.filter(d=>d.type==='o').map(d=>d.name).sort();
+            const dashMem = document.getElementById('dashMemSelect').value; const compMem = document.getElementById('compMemSelect').value;
+            document.getElementById('dashMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+            document.getElementById('dashMemSelect').value = dashMem || "Band Payment";
+            document.getElementById('compMemSelect').innerHTML = ms.map(m=>`<option value="${m}">${m}</option>`).join('');
+            document.getElementById('compMemSelect').value = compMem || "Band Payment";
+            document.getElementById('memDList').innerHTML = ms.map(m=>`<option value="${m}">`).join(''); document.getElementById('orgDList').innerHTML = os.map(o=>`<option value="${o}">`).join('');
+            document.getElementById('dirChips').innerHTML = db.dir.map((d,i)=>`<div class="chip">${d.name} (${d.type.toUpperCase()}) <span onclick="delDir(${i})">×</span></div>`).join('');
+            if(db.logo) { const lp = document.getElementById('logoPreview'); const hl = document.getElementById('headerLogo'); lp.src = db.logo; lp.style.display = 'block'; hl.src = db.logo; hl.style.display = 'block'; }
+        }
 
     function showPage(p) { document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active')); document.getElementById(p).classList.add('active'); if(p==='dash') updateDash(); if(p==='history') renderHistory(); if(p==='analysis') toggleAnalysisMode(); if(p==='compare') runComparison(); document.getElementById('btn-'+p)?.classList.add('active'); }
     
@@ -1088,12 +1110,22 @@ if(act==='reset') performWipe(); }, 100); } else { notify("Wrong PIN","danger");
     }
     
     function viewGigDetails(id) { 
-        const s=db.shows.find(x=>x.id===id); 
-        const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
-        const memPayouts = s.payouts.filter(p => p.name !== "Band Payment"); const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
-        document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div><div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}<div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div><div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div><div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div><button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
-        document.getElementById('detailModal').style.display='flex'; 
-    }
+            const s=db.shows.find(x=>x.id===id); 
+            const bpObj = s.payouts.find(p => p.name === "Band Payment"); const bpAmt = bpObj ? bpObj.amt : 0;
+            const tipsObj = s.payouts.find(p => p.name === "Tips"); const tipsAmt = tipsObj ? tipsObj.amt : 0;
+            const memPayouts = s.payouts.filter(p => p.name !== "Band Payment" && p.name !== "Tips"); const memTotal = memPayouts.reduce((a, b) => a + b.amt, 0);
+            
+            document.getElementById('modalBody').innerHTML = `<span class="close-x" onclick="document.getElementById('detailModal').style.display='none'">×</span><h3 style="margin-bottom:5px; color:var(--accent);">${s.venue}</h3><h4 style="margin:0 0 5px 0; color:var(--text);">${s.org}</h4><p style="font-size:12px; color:var(--dim); margin:0 0 15px 0;">${formatD(s.date)}</p>
+            <div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:10px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Total Deal</span><span style="font-size:20px; font-weight:bold; color:var(--success);">₹${s.deal.toLocaleString()}</span></div>
+            <div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:${tipsAmt > 0 ? '10px' : '15px'}; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Band Payment</span><span style="font-size:20px; font-weight:bold; color:var(--accent);">₹${bpAmt.toLocaleString()}</span></div>
+            ${tipsAmt > 0 ? `<div style="background:var(--bg); padding:12px; border-radius:15px; margin-bottom:15px; border:1px solid var(--border); text-align:center;"><span style="display:block; font-weight:600; font-size:11px; color:var(--dim);">Tips</span><span style="font-size:20px; font-weight:bold; color:var(--warning);">₹${tipsAmt.toLocaleString()}</span></div>` : ''}
+            ${s.note ? `<div style="background:var(--warning); color:white; padding:10px; border-radius:10px; margin-bottom:15px; font-size:13px; white-space: pre-wrap;">📌 ${s.note}</div>` : ''}
+            <div style="border-top:1px solid var(--border); max-height:250px; overflow-y:auto;">${memPayouts.map(p=>`<div style="border-bottom:1px solid var(--border); padding:10px 0; text-align:left;"><div style="display:flex; justify-content:space-between;"><span style="font-weight:500;">${p.name} <small style="color:var(--dim)">(${p.mode})</small></span><strong>₹${p.amt}</strong></div>${p.note ? `<div style="background:var(--bg); padding:5px; border-radius:5px; margin-top:5px; font-size:11px; color:var(--dim);">📝 ${p.note}</div>` : ''}</div>`).join('')}</div>
+            <div style="background:var(--grad); color:white; padding:12px; border-radius:15px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px;">Total Distributed</span><strong style="font-size:16px;">₹${memTotal.toLocaleString()}</strong></div>
+            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;"><button class="btn-main" style="flex:1; margin-top:0;" onclick="exportGigPDF(${id})">PDF</button><button class="btn-main" style="background:var(--info); flex:1; margin-top:0;" onclick="editGig(${id})">EDIT</button></div>
+            <button class="btn-main" style="background:var(--danger); margin-top:10px;" onclick="deleteGig(${id})">DELETE GIG</button>`; 
+            document.getElementById('detailModal').style.display='flex'; 
+        }
 
     function exportMemberPDF() {
         const name = document.getElementById('memSelect').value; if(!name) return;
